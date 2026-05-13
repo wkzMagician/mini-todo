@@ -12,6 +12,18 @@ const todoApi = {
     granularity: Granularity
   ): Promise<Todo[]> =>
     ipcRenderer.invoke("todos:update-granularity", { id, granularity }),
+  renameTask: (id: string, title: string): Promise<Todo[]> =>
+    ipcRenderer.invoke("todos:rename", { id, title }),
+  reorderTasks: (
+    granularity: Granularity,
+    fromIndex: number,
+    toIndex: number
+  ): Promise<Todo[]> =>
+    ipcRenderer.invoke("todos:reorder", { granularity, fromIndex, toIndex }),
+  getOpenAtLogin: (): Promise<boolean> =>
+    ipcRenderer.invoke("settings:get-open-at-login"),
+  setOpenAtLogin: (enabled: boolean): Promise<boolean> =>
+    ipcRenderer.invoke("settings:set-open-at-login", enabled),
   setCollapsed: (collapsed: boolean): Promise<void> =>
     ipcRenderer.invoke("window:set-collapsed", collapsed),
   closeWindow: (): void => {

@@ -47,7 +47,7 @@ select {
 .titlebar {
   -webkit-app-region: drag;
   display: grid;
-  grid-template-columns: 34px 1fr 34px;
+  grid-template-columns: 34px 1fr 34px 34px;
   align-items: center;
   gap: 6px;
   min-height: 54px;
@@ -114,10 +114,31 @@ select {
 .panel {
   min-height: 0;
   flex: 1;
-  display: grid;
-  grid-template-rows: auto 1fr auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   padding: 10px;
+}
+
+.settings-panel {
+  border: 1px solid #d8e2e8;
+  border-radius: 7px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: #17202a;
+}
+
+.setting-row input {
+  width: 18px;
+  height: 18px;
 }
 
 .tabs {
@@ -146,6 +167,7 @@ select {
 
 .task-list {
   min-height: 0;
+  flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -155,7 +177,7 @@ select {
 
 .task {
   display: grid;
-  grid-template-columns: 1fr 78px 32px;
+  grid-template-columns: 18px 1fr 78px 32px;
   align-items: center;
   gap: 8px;
   min-height: 44px;
@@ -165,10 +187,41 @@ select {
   background: #ffffff;
 }
 
+.task--dragging {
+  opacity: 0.55;
+}
+
+.drag-handle {
+  color: #8b9aa4;
+  cursor: grab;
+}
+
 .task__title {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #17202a;
+  cursor: text;
+  padding: 0;
+  text-align: left;
   min-width: 0;
   font-size: 14px;
   overflow-wrap: anywhere;
+}
+
+.task__title:hover {
+  color: #0f766e;
+}
+
+.task__edit-input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #7fb8b2;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #17202a;
+  padding: 0 8px;
+  font-size: 14px;
 }
 
 .task__granularity {

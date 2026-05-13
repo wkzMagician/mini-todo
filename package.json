@@ -1,11 +1,13 @@
 {
-  "name": "my-todo-list",
-  "version": "0.1.0",
+  "name": "mini-todo",
+  "version": "0.1.1",
   "description": "A compact floating desktop todo app.",
+  "author": "wkzMagician",
   "private": true,
   "main": "dist-electron/electron/main.js",
   "type": "module",
   "bin": {
+    "mini-todo": "scripts/todo-float.cjs",
     "todo-float": "scripts/todo-float.cjs"
   },
   "scripts": {
@@ -39,8 +41,8 @@
     "wait-on": "^9.0.3"
   },
   "build": {
-    "appId": "com.fantasyprojects.todofloat",
-    "productName": "Todo Float",
+    "appId": "com.fantasyprojects.minitodo",
+    "productName": "Mini Todo",
     "asar": true,
     "directories": {
       "output": "release"
@@ -68,8 +70,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Todo Float",
-      "uninstallDisplayName": "Todo Float"
+      "shortcutName": "Mini Todo",
+      "uninstallDisplayName": "Mini Todo"
     }
   }
 }

@@ -8,6 +8,14 @@ export interface TodoApi {
     id: string,
     granularity: Granularity
   ) => Promise<Todo[]>;
+  renameTask: (id: string, title: string) => Promise<Todo[]>;
+  reorderTasks: (
+    granularity: Granularity,
+    fromIndex: number,
+    toIndex: number
+  ) => Promise<Todo[]>;
+  getOpenAtLogin: () => Promise<boolean>;
+  setOpenAtLogin: (enabled: boolean) => Promise<boolean>;
   setCollapsed: (collapsed: boolean) => Promise<void>;
   closeWindow: () => void;
 }

@@ -1,9 +1,11 @@
-import { Check, ChevronDown, ChevronUp, Plus, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, GripVertical, Plus, Settings, X } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   createTodo,
   completeTodo,
   filterTodosByGranularity,
+  renameTodo,
+  reorderTodosWithinGranularity,
   updateTodoGranularity,
   type Granularity,
   type Todo
@@ -61,6 +63,23 @@ const browserPreviewApi: TodoApi = (() => {
       savePreviewTodos(previewTodos);
       return previewTodos;
     },
+    renameTask: async (id, title) => {
+      previewTodos = renameTodo(previewTodos, id, title);
+      savePreviewTodos(previewTodos);
+      return previewTodos;
+    },
+    reorderTasks: async (granularity, fromIndex, toIndex) => {
+      previewTodos = reorderTodosWithinGranularity(
+        previewTodos,
+        granularity,
+        fromIndex,
+        toIndex
+      );
+      savePreviewTodos(previewTodos);
+      return previewTodos;
+    },
+    getOpenAtLogin: async () => false,
+    setOpenAtLogin: async () => false,
     setCollapsed: async () => undefined,
     closeWindow: () => {
       window.close();
@@ -77,12 +96,24 @@ export function App() {
   const [newGranularity, setNewGranularity] = useState<Granularity>("day");
   const [collapsed, setCollapsedState] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [draggedTodoId, setDraggedTodoId] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [openAtLogin, setOpenAtLogin] = useState(false);
 
   useEffect(() => {
     todoApi
       .listTasks()
       .then(setTodos)
       .catch(() => setError("读取任务失败"));
+  }, [todoApi]);
+
+  useEffect(() => {
+    todoApi
+      .getOpenAtLogin()
+      .then(setOpenAtLogin)
+      .catch(() => setOpenAtLogin(false));
   }, [todoApi]);
 
   const visibleTodos = useMemo(
@@ -139,6 +170,65 @@ export function App() {
     }
   }
 
+  function startEditingTask(todo: Todo) {
+    setEditingTodoId(todo.id);
+    setEditingTitle(todo.title);
+  }
+
+  async function saveEditingTask() {
+    if (!editingTodoId) {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      setTodos(await todoApi.renameTask(editingTodoId, editingTitle));
+      setEditingTodoId(null);
+      setEditingTitle("");
+    } catch {
+      setError("请输入任务内容");
+    }
+  }
+
+  function cancelEditingTask() {
+    setEditingTodoId(null);
+    setEditingTitle("");
+  }
+
+  async function reorderTask(targetTodoId: string) {
+    if (!draggedTodoId || draggedTodoId === targetTodoId) {
+      return;
+    }
+
+    const fromIndex = visibleTodos.findIndex((todo) => todo.id === draggedTodoId);
+    const toIndex = visibleTodos.findIndex((todo) => todo.id === targetTodoId);
+
+    if (fromIndex < 0 || toIndex < 0) {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      setTodos(await todoApi.reorderTasks(selectedGranularity, fromIndex, toIndex));
+    } catch {
+      setError("更新任务顺序失败");
+    } finally {
+      setDraggedTodoId(null);
+    }
+  }
+
+  async function toggleOpenAtLogin(enabled: boolean) {
+    setError(null);
+
+    try {
+      setOpenAtLogin(await todoApi.setOpenAtLogin(enabled));
+    } catch {
+      setError("更新开机自启动失败");
+    }
+  }
+
   return (
     <main className={collapsed ? "app app--collapsed" : "app"}>
       <header className="titlebar">
@@ -153,11 +243,21 @@ export function App() {
         </button>
 
         <div className="titlebar__summary">
-          <span className="titlebar__title">Todo Float</span>
+          <span className="titlebar__title">Mini Todo</span>
           <span className="titlebar__meta">
             {selectedLabel} · {visibleTodos.length}
           </span>
         </div>
+
+        <button
+          className="icon-button"
+          type="button"
+          onClick={() => setSettingsOpen((value) => !value)}
+          title="设置"
+          aria-label="设置"
+        >
+          <Settings size={17} />
+        </button>
 
         <button
           className="icon-button icon-button--danger"
@@ -172,6 +272,19 @@ export function App() {
 
       {!collapsed && (
         <section className="panel">
+          {settingsOpen && (
+            <section className="settings-panel" aria-label="设置">
+              <label className="setting-row">
+                <span>开机自启动</span>
+                <input
+                  type="checkbox"
+                  checked={openAtLogin}
+                  onChange={(event) => void toggleOpenAtLogin(event.target.checked)}
+                />
+              </label>
+            </section>
+          )}
+
           <nav className="tabs" aria-label="任务粒度">
             {granularityOptions.map((option) => (
               <button
@@ -194,8 +307,55 @@ export function App() {
               <div className="empty">暂无任务</div>
             ) : (
               visibleTodos.map((todo) => (
-                <article className="task" key={todo.id}>
-                  <span className="task__title">{todo.title}</span>
+                <article
+                  className={
+                    draggedTodoId === todo.id ? "task task--dragging" : "task"
+                  }
+                  draggable={editingTodoId !== todo.id}
+                  key={todo.id}
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = "move";
+                    setDraggedTodoId(todo.id);
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "move";
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    void reorderTask(todo.id);
+                  }}
+                  onDragEnd={() => setDraggedTodoId(null)}
+                >
+                  <GripVertical className="drag-handle" size={17} aria-hidden />
+                  {editingTodoId === todo.id ? (
+                    <input
+                      className="task__edit-input"
+                      value={editingTitle}
+                      autoFocus
+                      onChange={(event) => setEditingTitle(event.target.value)}
+                      onBlur={() => void saveEditingTask()}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          void saveEditingTask();
+                        }
+
+                        if (event.key === "Escape") {
+                          cancelEditingTask();
+                        }
+                      }}
+                      aria-label={`编辑 ${todo.title}`}
+                    />
+                  ) : (
+                    <button
+                      className="task__title"
+                      type="button"
+                      onDoubleClick={() => startEditingTask(todo)}
+                      title="双击修改任务标题"
+                    >
+                      {todo.title}
+                    </button>
+                  )}
                   <select
                     className="task__granularity"
                     value={todo.granularity}

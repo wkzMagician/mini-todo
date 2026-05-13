@@ -14,6 +14,8 @@ import { randomUUID } from "node:crypto";
 import {
   completeTodo,
   createTodo,
+  renameTodo,
+  reorderTodosWithinGranularity,
   updateTodoGranularity,
   type Granularity,
   type Todo
@@ -170,6 +172,46 @@ if (hasSingleInstanceLock) {
       return readTodos();
     }
   );
+
+  ipcMain.handle(
+    "todos:rename",
+    (_event, input: { id: string; title: string }) => {
+      const nextTodos = renameTodo(readTodos(), input.id, input.title);
+      writeTodos(nextTodos);
+      return readTodos();
+    }
+  );
+
+  ipcMain.handle(
+    "todos:reorder",
+    (
+      _event,
+      input: { granularity: string; fromIndex: number; toIndex: number }
+    ) => {
+      assertGranularity(input.granularity);
+      const nextTodos = reorderTodosWithinGranularity(
+        readTodos(),
+        input.granularity,
+        input.fromIndex,
+        input.toIndex
+      );
+      writeTodos(nextTodos);
+      return readTodos();
+    }
+  );
+
+  ipcMain.handle("settings:get-open-at-login", () => {
+    return app.getLoginItemSettings().openAtLogin;
+  });
+
+  ipcMain.handle("settings:set-open-at-login", (_event, enabled: boolean) => {
+    app.setLoginItemSettings({
+      openAtLogin: enabled,
+      path: process.execPath
+    });
+
+    return app.getLoginItemSettings().openAtLogin;
+  });
 
   ipcMain.handle("window:set-collapsed", (event, collapsed: boolean) => {
     const window = BrowserWindow.fromWebContents(event.sender);

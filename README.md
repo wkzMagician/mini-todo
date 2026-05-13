@@ -1,4 +1,4 @@
-# Todo Float
+# Mini Todo
 
 A compact always-on-top Windows desktop todo app built with Electron, React, Vite, and TypeScript.
 
