@@ -1,6 +1,6 @@
 {
   "name": "mini-todo",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A compact floating desktop todo app.",
   "author": "wkzMagician",
   "private": true,
@@ -21,11 +21,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit"
   },
-  "dependencies": {
-    "lucide-react": "^0.561.0",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
@@ -35,6 +31,9 @@
     "cross-env": "^10.1.0",
     "electron": "^39.2.7",
     "jsdom": "^27.3.0",
+    "lucide-react": "^0.561.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "typescript": "^5.9.3",
     "vite": "^7.2.7",
     "vitest": "^4.0.16",
@@ -45,6 +44,11 @@
     "productName": "Mini Todo",
     "icon": "public/icon.ico",
     "asar": true,
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US",
+      "zh-CN"
+    ],
     "directories": {
       "output": "release"
     },
