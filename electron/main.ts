@@ -24,6 +24,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const expandedWindowHeight = 520;
 const collapsedWindowHeight = 56;
+const appRoot = join(__dirname, "../..");
 
 app.commandLine.appendSwitch("disable-http-cache");
 app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
@@ -45,6 +46,15 @@ function quitApplication(): void {
 
 function getTodosPath(): string {
   return join(app.getPath("userData"), "todos.json");
+}
+
+function getWindowIconPath(): string | undefined {
+  const iconPaths = [
+    join(appRoot, "public", "icon.png"),
+    join(appRoot, "dist", "icon.png")
+  ];
+
+  return iconPaths.find((iconPath) => existsSync(iconPath));
 }
 
 function readTodos(): Todo[] {
@@ -94,6 +104,7 @@ function createWindow(): void {
     resizable: true,
     skipTaskbar: false,
     backgroundColor: "#f8fafc",
+    icon: getWindowIconPath(),
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
       contextIsolation: true,

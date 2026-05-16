@@ -43,6 +43,7 @@
   "build": {
     "appId": "com.fantasyprojects.minitodo",
     "productName": "Mini Todo",
+    "icon": "public/icon.ico",
     "asar": true,
     "directories": {
       "output": "release"
@@ -53,6 +54,7 @@
       "package.json"
     ],
     "win": {
+      "icon": "public/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -61,8 +63,7 @@
           ]
         }
       ],
-      "requestedExecutionLevel": "asInvoker",
-      "signAndEditExecutable": false
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
