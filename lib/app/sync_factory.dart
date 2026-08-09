@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dartloom_runtime/dartloom_runtime.dart';
 import 'package:dartloom_settings/dartloom_settings.dart';
 import 'package:dartloom_storage/dartloom_storage.dart';
@@ -5,6 +7,7 @@ import 'package:dartloom_sync/dartloom_sync.dart';
 import 'package:dartloom_sync_etag/dartloom_sync_etag.dart';
 import 'package:dartloom_sync_webdav/dartloom_sync_webdav.dart';
 
+import '../features/todos/data/todo_repository.dart';
 import 'sync_configuration.dart';
 
 Future<DartloomBinding<Object>> createAppSync(
@@ -46,17 +49,19 @@ final class ConfiguredWebDavSyncEngine implements SyncEngine {
     try {
       final configuration = await _readConfiguration();
       final delegate = EtagSyncEngine(
-        local: JsonLocalSyncStore(jsonStore),
-        remote: WebDavObjectStore(
-          baseUrl: configuration.url,
-          rootPath: configuration.rootPath,
-          username: configuration.username,
-          password: configuration.password,
+        local: _TodoLocalSyncStore(jsonStore),
+        remote: _TodoRemoteObjectStore(
+          WebDavObjectStore(
+            baseUrl: configuration.url,
+            rootPath: configuration.rootPath,
+            username: configuration.username,
+            password: configuration.password,
+          ),
         ),
         stateStore: JsonSyncStateStore(
           jsonStore,
           key:
-              '__dartloom_sync/default/${Uri.encodeComponent(configuration.stateKey)}',
+              '__dartloom_sync/todos-v2/${Uri.encodeComponent(configuration.stateKey)}',
         ),
       );
       final result = await delegate.sync();
@@ -114,4 +119,53 @@ final class _WebDavConfiguration {
   final String password;
 
   String get stateKey => '$url|$rootPath|$username';
+}
+
+final class _TodoLocalSyncStore implements LocalSyncStore {
+  _TodoLocalSyncStore(JsonStore store) : _delegate = JsonLocalSyncStore(store);
+
+  final JsonLocalSyncStore _delegate;
+
+  @override
+  Future<void> delete(String key) => _delegate.delete(key);
+
+  @override
+  Future<List<String>> list() async => (await _delegate.list())
+      .where(TodoStorageKeys.isTodoKey)
+      .toList(growable: false);
+
+  @override
+  Future<Uint8List?> read(String key) => _delegate.read(key);
+
+  @override
+  Future<void> write(String key, Uint8List data) => _delegate.write(key, data);
+}
+
+final class _TodoRemoteObjectStore implements RemoteObjectStore {
+  const _TodoRemoteObjectStore(this._delegate);
+
+  final RemoteObjectStore _delegate;
+
+  @override
+  Future<void> delete(String key, {String? ifMatch}) =>
+      _delegate.delete(key, ifMatch: ifMatch);
+
+  @override
+  Future<void> initialize() => _delegate.initialize();
+
+  @override
+  Future<List<RemoteObjectMetadata>> list() async => (await _delegate.list())
+      .where((item) => TodoStorageKeys.isTodoKey(item.key))
+      .toList(growable: false);
+
+  @override
+  Future<SyncObject?> read(String key) => _delegate.read(key);
+
+  @override
+  Future<String> write(
+    String key,
+    Uint8List data, {
+    String? ifMatch,
+    bool createOnly = false,
+  }) => _delegate.write(key, data, ifMatch: ifMatch, createOnly: createOnly);
 }

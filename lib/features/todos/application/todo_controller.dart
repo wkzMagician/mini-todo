@@ -87,6 +87,7 @@ class TodoController extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
+    if (syncAvailable && syncConfigured) await sync();
   }
 
   void selectGranularity(TodoGranularity granularity) {

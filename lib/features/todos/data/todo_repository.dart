@@ -7,6 +7,14 @@ abstract interface class TodoRepository {
   Future<void> save(List<Todo> todos);
 }
 
+abstract final class TodoStorageKeys {
+  static const legacyTodosKey = 'todos';
+  static const todoPrefix = 'todo-';
+
+  static bool isTodoKey(String key) => key.startsWith(todoPrefix);
+  static String forTodo(String id) => '$todoPrefix$id';
+}
+
 class MemoryTodoRepository implements TodoRepository {
   MemoryTodoRepository([Iterable<Todo> initialTodos = const []])
     : _todos = List<Todo>.from(initialTodos);
@@ -23,20 +31,73 @@ class MemoryTodoRepository implements TodoRepository {
 class JsonStoreTodoRepository implements TodoRepository {
   JsonStoreTodoRepository(this._store);
 
-  static const _todosKey = 'todos';
   final JsonStore _store;
 
   @override
   Future<List<Todo>> load() async {
-    final value = await _store.read(_todosKey);
-    if (value is! List) return const [];
-    return value
-        .whereType<Map>()
-        .map((todo) => Todo.fromJson(todo.cast<String, dynamic>()))
-        .toList();
+    final keys = (await _store.list()).where(TodoStorageKeys.isTodoKey).toList()
+      ..sort();
+    if (keys.isEmpty) return _migrateLegacyTodos();
+
+    final storedTodos = (await Future.wait(
+      keys.map(_readStoredTodo),
+    )).whereType<_StoredTodo>().toList()..sort(_compareStoredTodos);
+    return storedTodos.map((stored) => stored.todo).toList();
   }
 
   @override
-  Future<void> save(List<Todo> todos) =>
-      _store.write(_todosKey, todos.map((todo) => todo.toJson()).toList());
+  Future<void> save(List<Todo> todos) async {
+    final existingKeys = (await _store.list())
+        .where(TodoStorageKeys.isTodoKey)
+        .toSet();
+    final nextKeys = <String>{};
+
+    await Future.wait([
+      for (final entry in todos.indexed)
+        _writeTodo(entry.$1, entry.$2, nextKeys),
+      for (final key in existingKeys)
+        if (!nextKeys.contains(key)) _store.delete(key),
+      _store.delete(TodoStorageKeys.legacyTodosKey),
+    ]);
+  }
+
+  Future<List<Todo>> _migrateLegacyTodos() async {
+    final value = await _store.read(TodoStorageKeys.legacyTodosKey);
+    if (value is! List) return const [];
+    final todos = value
+        .whereType<Map>()
+        .map((todo) => Todo.fromJson(todo.cast<String, dynamic>()))
+        .toList();
+    await save(todos);
+    return todos;
+  }
+
+  Future<_StoredTodo?> _readStoredTodo(String key) async {
+    final value = await _store.read(key);
+    if (value is! Map) return null;
+    final todo = Todo.fromJson(value.cast<String, dynamic>());
+    final sortOrder = value['sortOrder'];
+    return _StoredTodo(todo, sortOrder is int ? sortOrder : 0);
+  }
+
+  Future<void> _writeTodo(int sortOrder, Todo todo, Set<String> nextKeys) {
+    final key = TodoStorageKeys.forTodo(todo.id);
+    nextKeys.add(key);
+    return _store.write(key, {...todo.toJson(), 'sortOrder': sortOrder});
+  }
+
+  static int _compareStoredTodos(_StoredTodo left, _StoredTodo right) {
+    final byOrder = left.sortOrder.compareTo(right.sortOrder);
+    if (byOrder != 0) return byOrder;
+    final byCreatedAt = left.todo.createdAt.compareTo(right.todo.createdAt);
+    if (byCreatedAt != 0) return byCreatedAt;
+    return left.todo.id.compareTo(right.todo.id);
+  }
+}
+
+final class _StoredTodo {
+  const _StoredTodo(this.todo, this.sortOrder);
+
+  final Todo todo;
+  final int sortOrder;
 }
