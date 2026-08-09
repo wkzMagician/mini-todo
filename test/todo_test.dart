@@ -1,0 +1,83 @@
+import 'package:dartloom_autostart/dartloom_autostart.dart';
+import 'package:dartloom_logging/dartloom_logging.dart';
+import 'package:dartloom_settings/dartloom_settings.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mini_todo/features/todos/application/todo_controller.dart';
+import 'package:mini_todo/features/todos/data/todo_repository.dart';
+import 'package:mini_todo/features/todos/domain/todo.dart';
+
+void main() {
+  final now = DateTime(2026, 8, 7);
+
+  test('creates a trimmed todo', () {
+    final todo = createTodo(
+      id: 'one',
+      title: '  Write docs  ',
+      granularity: TodoGranularity.day,
+      now: now,
+    );
+
+    expect(todo.title, 'Write docs');
+    expect(todo.id, 'one');
+    expect(todo.createdAt, now);
+  });
+
+  test('rejects a blank todo title', () {
+    expect(
+      () => createTodo(title: '  ', granularity: TodoGranularity.day),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
+  test('filters, renames, moves, and completes todos', () {
+    final todos = [
+      Todo(
+        id: 'one',
+        title: 'First task',
+        granularity: TodoGranularity.day,
+        createdAt: now,
+      ),
+      Todo(
+        id: 'two',
+        title: 'Second task',
+        granularity: TodoGranularity.day,
+        createdAt: now,
+      ),
+      Todo(
+        id: 'three',
+        title: 'Third task',
+        granularity: TodoGranularity.week,
+        createdAt: now,
+      ),
+    ];
+
+    expect(filterTodos(todos, TodoGranularity.week).single.id, 'three');
+    expect(renameTodo(todos, 'one', 'Renamed').first.title, 'Renamed');
+    expect(reorderTodos(todos, TodoGranularity.day, 0, 1).first.id, 'two');
+    expect(completeTodo(todos, 'two').map((todo) => todo.id), ['one', 'three']);
+  });
+
+  test('restores the most recently completed todo', () async {
+    final repository = MemoryTodoRepository([
+      Todo(
+        id: 'one',
+        title: 'Undo me',
+        granularity: TodoGranularity.day,
+        createdAt: now,
+      ),
+    ]);
+    final controller = TodoController(
+      repository: repository,
+      settings: MemorySettingsStore(),
+      autostart: MemoryAutostartService(),
+      logger: MemoryLogger(),
+    );
+
+    await controller.initialize();
+    expect(await controller.completeTask('one'), isTrue);
+    expect(controller.todos, isEmpty);
+    expect(await controller.undoLastCompletion(), isTrue);
+    expect(controller.todos.single.title, 'Undo me');
+    controller.dispose();
+  });
+}
