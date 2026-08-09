@@ -3,6 +3,7 @@ import 'package:dartloom_logging/dartloom_logging.dart';
 import 'package:dartloom_runtime/dartloom_runtime.dart';
 import 'package:dartloom_settings/dartloom_settings.dart';
 import 'package:dartloom_storage/dartloom_storage.dart';
+import 'package:dartloom_sync/dartloom_sync.dart';
 import 'package:flutter/material.dart';
 
 import '../../../app/window_controller.dart';
@@ -17,6 +18,7 @@ class TodoHomePage extends StatefulWidget {
     this.settings,
     this.autostart,
     this.logger,
+    this.syncEngine,
     required this.locale,
     required this.onLocaleChanged,
     super.key,
@@ -26,6 +28,7 @@ class TodoHomePage extends StatefulWidget {
   final SettingsStore? settings;
   final AutostartService? autostart;
   final AppLogger? logger;
+  final SyncEngine? syncEngine;
   final Locale locale;
   final Future<void> Function(Locale locale) onLocaleChanged;
 
@@ -38,6 +41,10 @@ class _TodoHomePageState extends State<TodoHomePage> {
   final _windowController = DesktopWindowController();
   final _newTitleController = TextEditingController();
   final _editTitleController = TextEditingController();
+  final _syncUrlController = TextEditingController();
+  final _syncRootPathController = TextEditingController();
+  final _syncUsernameController = TextEditingController();
+  final _syncPasswordController = TextEditingController();
   TodoGranularity _newGranularity = TodoGranularity.day;
   String? _editingTodoId;
 
@@ -51,9 +58,17 @@ class _TodoHomePageState extends State<TodoHomePage> {
       settings: widget.settings ?? Dartloom.get<SettingsStore>(),
       autostart: widget.autostart ?? Dartloom.get<AutostartService>(),
       logger: widget.logger ?? Dartloom.get<AppLogger>(),
+      syncEngine:
+          widget.syncEngine ??
+          (Dartloom.contains<SyncEngine>() ? Dartloom.get<SyncEngine>() : null),
     );
     _controller.initialize().then((_) {
-      if (mounted) _windowController.setCollapsed(_controller.collapsed);
+      if (!mounted) return;
+      _syncUrlController.text = _controller.syncUrl;
+      _syncRootPathController.text = _controller.syncRootPath;
+      _syncUsernameController.text = _controller.syncUsername;
+      _syncPasswordController.text = _controller.syncPassword;
+      _windowController.setCollapsed(_controller.collapsed);
     });
   }
 
@@ -61,6 +76,10 @@ class _TodoHomePageState extends State<TodoHomePage> {
   void dispose() {
     _newTitleController.dispose();
     _editTitleController.dispose();
+    _syncUrlController.dispose();
+    _syncRootPathController.dispose();
+    _syncUsernameController.dispose();
+    _syncPasswordController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -207,8 +226,98 @@ class _TodoHomePageState extends State<TodoHomePage> {
               value: _controller.openAtLogin,
               onChanged: _controller.setOpenAtLogin,
             ),
+            if (_controller.syncAvailable) ...[
+              const Divider(height: 20),
+              _buildSyncSettings(context, strings),
+            ],
           ],
         ),
+      );
+
+  Widget _buildSyncSettings(BuildContext context, AppLocalizations strings) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            strings.sync,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _syncUrlController,
+            decoration: InputDecoration(
+              labelText: strings.syncWebDavUrl,
+              isDense: true,
+            ),
+            keyboardType: TextInputType.url,
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _syncRootPathController,
+                  decoration: InputDecoration(
+                    labelText: strings.syncWebDavRootPath,
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: TextField(
+                  controller: _syncUsernameController,
+                  decoration: InputDecoration(
+                    labelText: strings.syncWebDavUsername,
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _syncPasswordController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: strings.syncWebDavPassword,
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _saveSyncSettings,
+                  child: Text(strings.saveSync),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: _controller.syncStatus == SyncStatus.syncing
+                      ? null
+                      : _syncNow,
+                  icon: const Icon(Icons.sync, size: 16),
+                  label: Text(strings.syncNow),
+                ),
+              ),
+            ],
+          ),
+          if (_controller.syncStatus != SyncStatus.idle) ...[
+            const SizedBox(height: 6),
+            Text(
+              _syncStatusLabel(strings),
+              style: TextStyle(
+                color: _controller.syncStatus == SyncStatus.failed
+                    ? const Color(0xff9e1f33)
+                    : const Color(0xff0f766e),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ],
       );
 
   Widget _buildTabs(BuildContext context, AppLocalizations strings) => SizedBox(
@@ -400,6 +509,30 @@ class _TodoHomePageState extends State<TodoHomePage> {
         mounted) {
       _newTitleController.clear();
     }
+  }
+
+  Future<void> _saveSyncSettings() => _controller.saveSyncConfiguration(
+    url: _syncUrlController.text,
+    rootPath: _syncRootPathController.text,
+    username: _syncUsernameController.text,
+    password: _syncPasswordController.text,
+  );
+
+  Future<void> _syncNow() async {
+    await _saveSyncSettings();
+    await _controller.sync();
+  }
+
+  String _syncStatusLabel(AppLocalizations strings) {
+    if (_controller.syncStatus == SyncStatus.syncing) return strings.syncNow;
+    if (!_controller.syncConfigured) return strings.syncNotConfigured;
+    return switch (_controller.syncStatus) {
+      SyncStatus.succeeded => strings.syncSucceeded,
+      SyncStatus.conflicted => strings.syncConflicted,
+      SyncStatus.failed => _controller.syncMessage ?? strings.syncFailed,
+      SyncStatus.idle => '',
+      SyncStatus.syncing => strings.syncNow,
+    };
   }
 
   Future<void> _completeTask(Todo todo) async {

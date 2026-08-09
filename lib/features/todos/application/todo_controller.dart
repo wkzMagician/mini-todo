@@ -5,8 +5,10 @@
 import 'package:dartloom_autostart/dartloom_autostart.dart';
 import 'package:dartloom_logging/dartloom_logging.dart';
 import 'package:dartloom_settings/dartloom_settings.dart';
+import 'package:dartloom_sync/dartloom_sync.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../app/sync_configuration.dart';
 import '../data/todo_repository.dart';
 import '../domain/todo.dart';
 
@@ -16,6 +18,7 @@ class TodoController extends ChangeNotifier {
     required SettingsStore settings,
     required AutostartService autostart,
     required AppLogger logger,
+    this.syncEngine,
   }) : _repository = repository,
        _settings = settings,
        _autostart = autostart,
@@ -28,6 +31,7 @@ class TodoController extends ChangeNotifier {
   final SettingsStore _settings;
   final AutostartService _autostart;
   final AppLogger _logger;
+  final SyncEngine? syncEngine;
 
   List<Todo> _todos = [];
   TodoGranularity _selectedGranularity = TodoGranularity.day;
@@ -36,6 +40,12 @@ class TodoController extends ChangeNotifier {
   bool _openAtLogin = false;
   bool _loading = true;
   String? _error;
+  SyncStatus _syncStatus = SyncStatus.idle;
+  String? _syncMessage;
+  String _syncUrl = '';
+  String _syncRootPath = '';
+  String _syncUsername = '';
+  String _syncPassword = '';
   Todo? _lastCompletedTodo;
   int? _lastCompletedIndex;
 
@@ -47,6 +57,14 @@ class TodoController extends ChangeNotifier {
   bool get openAtLogin => _openAtLogin;
   bool get loading => _loading;
   String? get error => _error;
+  bool get syncAvailable => syncEngine != null;
+  SyncStatus get syncStatus => _syncStatus;
+  String? get syncMessage => _syncMessage;
+  bool get syncConfigured => _syncUrl.trim().isNotEmpty;
+  String get syncUrl => _syncUrl;
+  String get syncRootPath => _syncRootPath;
+  String get syncUsername => _syncUsername;
+  String get syncPassword => _syncPassword;
 
   Future<void> initialize() async {
     try {
@@ -57,6 +75,10 @@ class TodoController extends ChangeNotifier {
         _selectedGranularity = TodoGranularityX.fromStorage(savedGranularity);
       }
       _openAtLogin = await _autostart.isEnabled();
+      _syncUrl = await _readSetting(syncWebDavUrlKey);
+      _syncRootPath = await _readSetting(syncWebDavRootPathKey);
+      _syncUsername = await _readSetting(syncWebDavUsernameKey);
+      _syncPassword = await _readSetting(syncWebDavPasswordKey);
       _logger.info('Todo data loaded.');
     } catch (error, stackTrace) {
       _error = 'Failed to load tasks.';
@@ -197,12 +219,58 @@ class TodoController extends ChangeNotifier {
     }
   }
 
+  Future<void> saveSyncConfiguration({
+    required String url,
+    required String rootPath,
+    required String username,
+    required String password,
+  }) async {
+    _syncUrl = url.trim();
+    _syncRootPath = rootPath.trim();
+    _syncUsername = username;
+    _syncPassword = password;
+    await Future.wait([
+      _settings.write(syncWebDavUrlKey, _syncUrl),
+      _settings.write(syncWebDavRootPathKey, _syncRootPath),
+      _settings.write(syncWebDavUsernameKey, _syncUsername),
+      _settings.write(syncWebDavPasswordKey, _syncPassword),
+    ]);
+    _syncMessage = null;
+    notifyListeners();
+  }
+
+  Future<SyncResult?> sync() async {
+    final engine = syncEngine;
+    if (engine == null) return null;
+
+    _syncStatus = SyncStatus.syncing;
+    _syncMessage = null;
+    notifyListeners();
+    final result = await engine.sync();
+    if (result.status != SyncStatus.failed) {
+      try {
+        _todos = await _repository.load();
+      } catch (error, stackTrace) {
+        _logger.error('Failed to reload tasks after sync.', error, stackTrace);
+      }
+    }
+    _syncStatus = result.status;
+    _syncMessage = result.message;
+    notifyListeners();
+    return result;
+  }
+
   Future<void> _save(List<Todo> todos) async {
     await _repository.save(todos);
     _todos = todos;
   }
 
   void _clearError() => _error = null;
+
+  Future<String> _readSetting(String key) async {
+    final value = await _settings.read(key);
+    return value is String ? value : '';
+  }
 
   void _fail(String message, Object error, StackTrace stackTrace) {
     _error = message;

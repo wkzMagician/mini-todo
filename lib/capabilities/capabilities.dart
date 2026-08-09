@@ -7,6 +7,7 @@ import 'package:dartloom_storage/dartloom_storage.dart';
 import 'package:dartloom_logging/dartloom_logging.dart';
 import 'dart:io';
 import 'package:dartloom_autostart/dartloom_autostart.dart';
+import 'package:dartloom_sync/dartloom_sync.dart';
 import 'package:dartloom_localization/dartloom_localization.dart';
 import 'package:mini_todo/l10n/app_localizations.dart';
 import 'package:dartloom_resident/dartloom_resident.dart';
@@ -14,6 +15,8 @@ import 'package:dartloom_settings_shared_preferences/dartloom_settings_shared_pr
 import 'package:dartloom_storage_json_file/dartloom_storage_json_file.dart';
 import 'package:dartloom_logging_logger/dartloom_logging_logger.dart';
 import 'package:dartloom_autostart_launch_at_startup/dartloom_autostart_launch_at_startup.dart';
+import 'package:dartloom_sync_etag/dartloom_sync_etag.dart';
+import 'package:dartloom_sync_webdav/dartloom_sync_webdav.dart';
 import 'package:dartloom_localization_gen_l10n/dartloom_localization_gen_l10n.dart';
 import 'package:dartloom_resident_tray/dartloom_resident_tray.dart';
 
@@ -58,6 +61,61 @@ Future<void> initializeDartloom({
         configuration: _dartloomResidentConfiguration(context.options),
       );
       return DartloomBinding<ResidentService>(value, dispose: value.dispose);
+    },
+    'etag_object': (context) async {
+      final localStores = <String, LocalSyncStore>{};
+      for (final reference
+          in (context.options['stores'] as List).cast<String>()) {
+        final name = reference.substring('storage.'.length);
+        if (name == 'text') {
+          localStores[name] = TextLocalSyncStore(
+            context.get<TextStore>(name: name),
+          );
+        }
+        if (name == 'json') {
+          localStores[name] = JsonLocalSyncStore(
+            context.get<JsonStore>(name: name),
+          );
+        }
+        if (name == 'database') {
+          localStores[name] = DatabaseLocalSyncStore(
+            context.get<DatabaseStore>(name: name),
+          );
+        }
+      }
+      final remote = WebDavObjectStore(
+        baseUrl: Uri.parse(context.options['backend_base_url'] as String),
+        rootPath: context.options['backend_root_path'] as String? ?? 'Dartloom',
+        username: context.options['backend_username'] as String? ?? '',
+        password: context.options['backend_password'] as String? ?? '',
+      );
+      SyncMergePolicy? merge;
+      final mergeFactory = context.options['merge_factory'] as String?;
+      if (mergeFactory != null) {
+        final factory = factories[mergeFactory];
+        if (factory == null) {
+          throw DartloomException('missing merge factory $mergeFactory.');
+        }
+        final binding = await factory(context);
+        if (binding.value is! SyncMergePolicy) {
+          throw DartloomException(
+            'merge factory $mergeFactory must return SyncMergePolicy.',
+          );
+        }
+        merge = binding.value as SyncMergePolicy;
+      }
+      final state = JsonSyncStateStore(
+        context.get<JsonStore>(name: 'json'),
+        key: '__dartloom_sync/${context.name}',
+      );
+      return DartloomBinding<SyncEngine>(
+        EtagSyncEngine(
+          local: CompositeLocalSyncStore(localStores),
+          remote: remote,
+          stateStore: state,
+          merge: merge,
+        ),
+      );
     },
   };
   final collisions = officialFactories.keys.toSet().intersection(
@@ -118,6 +176,28 @@ Future<void> initializeDartloom({
         name: "default",
         factory: "launch_at_startup",
         options: <String, Object?>{},
+      ),
+    if (_dartloomSupportsCurrentPlatform(const {
+      "android",
+      "ios",
+      "windows",
+      "macos",
+      "linux",
+      "web",
+    }))
+      DartloomRegistration<SyncEngine>(
+        capability: 'sync',
+        name: "default",
+        factory: "app_sync",
+        options: <String, Object?>{
+          "stores": ["storage.json"],
+          "backend_base_url": "https://example.invalid",
+          "backend_root_path": "MiniTodo",
+        },
+        dependsOn: const [
+          DartloomReference('settings', 'default'),
+          DartloomReference('storage', 'json'),
+        ],
       ),
     if (_dartloomSupportsCurrentPlatform(const {
       "android",

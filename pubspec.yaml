@@ -42,6 +42,9 @@ dependencies:
   dartloom_settings_shared_preferences: ^0.1.0
   dartloom_storage: ^0.2.0
   dartloom_storage_json_file: ^0.1.0
+  dartloom_sync: ^0.2.0
+  dartloom_sync_etag: ^0.1.0
+  dartloom_sync_webdav: ^0.1.0
   # dartloom:dependencies:end
   flutter:
     sdk: flutter
@@ -161,4 +164,16 @@ dependency_overrides:
     git:
       url: https://github.com/wkzMagician/dartloom.git
       path: packages/dartloom_storage_json_file
+  dartloom_sync:
+    git:
+      url: https://github.com/wkzMagician/dartloom.git
+      path: packages/dartloom_sync
+  dartloom_sync_etag:
+    git:
+      url: https://github.com/wkzMagician/dartloom.git
+      path: packages/dartloom_sync_etag
+  dartloom_sync_webdav:
+    git:
+      url: https://github.com/wkzMagician/dartloom.git
+      path: packages/dartloom_sync_webdav
   # dartloom:overrides:end

@@ -32,4 +32,15 @@
   "undo": "Undo",
   "editTaskHint": "Click to edit task",
   "loading": "Loading tasks"
+  ,"sync": "Sync"
+  ,"syncWebDavUrl": "WebDAV URL"
+  ,"syncWebDavRootPath": "Remote folder"
+  ,"syncWebDavUsername": "Username"
+  ,"syncWebDavPassword": "Password"
+  ,"saveSync": "Save sync settings"
+  ,"syncNow": "Sync now"
+  ,"syncNotConfigured": "Configure WebDAV first"
+  ,"syncSucceeded": "Sync complete"
+  ,"syncConflicted": "Sync has conflicts"
+  ,"syncFailed": "Sync failed"
 }

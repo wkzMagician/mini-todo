@@ -99,4 +99,37 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get loading => '正在读取任务';
+
+  @override
+  String get sync => '同步';
+
+  @override
+  String get syncWebDavUrl => 'WebDAV 地址';
+
+  @override
+  String get syncWebDavRootPath => '远程目录';
+
+  @override
+  String get syncWebDavUsername => '用户名';
+
+  @override
+  String get syncWebDavPassword => '密码';
+
+  @override
+  String get saveSync => '保存同步设置';
+
+  @override
+  String get syncNow => '立即同步';
+
+  @override
+  String get syncNotConfigured => '请先配置 WebDAV';
+
+  @override
+  String get syncSucceeded => '同步完成';
+
+  @override
+  String get syncConflicted => '同步存在冲突';
+
+  @override
+  String get syncFailed => '同步失败';
 }

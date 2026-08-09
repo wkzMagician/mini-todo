@@ -32,6 +32,20 @@ capabilities:
     instances:
       default:
         implementation: "launch_at_startup"
+  sync:
+    instances:
+      default:
+        implementation: "etag_object"
+        factory: "app_sync"
+        depends_on:
+          - "settings.default"
+        stores:
+          - "storage.json"
+        backend:
+          implementation: "webdav"
+          options:
+            base_url: "https://example.invalid"
+            root_path: "MiniTodo"
   localization:
     instances:
       default:

@@ -1,7 +1,10 @@
 import 'package:dartloom_autostart/dartloom_autostart.dart';
 import 'package:dartloom_logging/dartloom_logging.dart';
 import 'package:dartloom_settings/dartloom_settings.dart';
+import 'package:dartloom_storage/dartloom_storage.dart';
+import 'package:dartloom_sync/dartloom_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mini_todo/app/sync_factory.dart';
 import 'package:mini_todo/features/todos/application/todo_controller.dart';
 import 'package:mini_todo/features/todos/data/todo_repository.dart';
 import 'package:mini_todo/features/todos/domain/todo.dart';
@@ -79,5 +82,18 @@ void main() {
     expect(await controller.undoLastCompletion(), isTrue);
     expect(controller.todos.single.title, 'Undo me');
     controller.dispose();
+  });
+
+  test('fails sync clearly when WebDAV is not configured', () async {
+    final engine = ConfiguredWebDavSyncEngine(
+      settings: MemorySettingsStore(),
+      jsonStore: MemoryJsonStore(),
+      defaultRootPath: 'MiniTodo',
+    );
+
+    final result = await engine.sync();
+
+    expect(result.status, SyncStatus.failed);
+    expect(result.message, contains('WebDAV URL'));
   });
 }

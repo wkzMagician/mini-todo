@@ -100,4 +100,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get loading => 'Loading tasks';
+
+  @override
+  String get sync => 'Sync';
+
+  @override
+  String get syncWebDavUrl => 'WebDAV URL';
+
+  @override
+  String get syncWebDavRootPath => 'Remote folder';
+
+  @override
+  String get syncWebDavUsername => 'Username';
+
+  @override
+  String get syncWebDavPassword => 'Password';
+
+  @override
+  String get saveSync => 'Save sync settings';
+
+  @override
+  String get syncNow => 'Sync now';
+
+  @override
+  String get syncNotConfigured => 'Configure WebDAV first';
+
+  @override
+  String get syncSucceeded => 'Sync complete';
+
+  @override
+  String get syncConflicted => 'Sync has conflicts';
+
+  @override
+  String get syncFailed => 'Sync failed';
 }

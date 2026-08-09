@@ -32,4 +32,15 @@
   "undo": "撤销",
   "editTaskHint": "点击编辑任务",
   "loading": "正在读取任务"
+  ,"sync": "同步"
+  ,"syncWebDavUrl": "WebDAV 地址"
+  ,"syncWebDavRootPath": "远程目录"
+  ,"syncWebDavUsername": "用户名"
+  ,"syncWebDavPassword": "密码"
+  ,"saveSync": "保存同步设置"
+  ,"syncNow": "立即同步"
+  ,"syncNotConfigured": "请先配置 WebDAV"
+  ,"syncSucceeded": "同步完成"
+  ,"syncConflicted": "同步存在冲突"
+  ,"syncFailed": "同步失败"
 }

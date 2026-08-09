@@ -265,6 +265,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Loading tasks'**
   String get loading;
+
+  /// No description provided for @sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get sync;
+
+  /// No description provided for @syncWebDavUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV URL'**
+  String get syncWebDavUrl;
+
+  /// No description provided for @syncWebDavRootPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote folder'**
+  String get syncWebDavRootPath;
+
+  /// No description provided for @syncWebDavUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get syncWebDavUsername;
+
+  /// No description provided for @syncWebDavPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get syncWebDavPassword;
+
+  /// No description provided for @saveSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Save sync settings'**
+  String get saveSync;
+
+  /// No description provided for @syncNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync now'**
+  String get syncNow;
+
+  /// No description provided for @syncNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure WebDAV first'**
+  String get syncNotConfigured;
+
+  /// No description provided for @syncSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync complete'**
+  String get syncSucceeded;
+
+  /// No description provided for @syncConflicted.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync has conflicts'**
+  String get syncConflicted;
+
+  /// No description provided for @syncFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed'**
+  String get syncFailed;
 }
 
 class _AppLocalizationsDelegate
