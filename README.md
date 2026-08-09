@@ -1,17 +1,36 @@
-# mini_todo
+# Mini Todo
 
-A new Flutter project.
+Mini Todo 是一个 Windows 桌面待办应用，使用 Flutter 重构，并通过
+Dartloom 管理设置、存储和同步能力。
 
-## Getting Started
+## 功能
 
-This project is a starting point for a Flutter application.
+- 创建、编辑、完成和删除待办事项
+- 常驻系统托盘，可快速恢复或完全退出应用
+- 可选 WebDAV 多设备同步
+- 待办数据保存在本机；同步未配置或失败时不会清除本地数据
 
-A few resources to get you started if this is your first Flutter project:
+## WebDAV 同步
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+打开应用的“设置”，填写以下信息后点击“保存”，再点击“立即同步”：
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- WebDAV 地址：服务端地址，例如 `https://dav.example.com/remote.php/dav/files/your-name/`
+- 远程文件夹：用于保存 Mini Todo 同步数据的目录，例如 `MiniTodo`
+- 用户名和密码：该 WebDAV 服务的登录凭据
+
+首次同步会在远程目录创建数据文件。多个设备请使用相同的服务地址、目录和账号。
+
+## 开发
+
+```bash
+flutter pub get
+flutter run -d windows
+```
+
+提交前请运行：
+
+```bash
+dart format .
+flutter analyze
+flutter test
+```
