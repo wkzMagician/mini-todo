@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:dartloom_autostart/dartloom_autostart.dart';
 import 'package:dartloom_logging/dartloom_logging.dart';
 import 'package:dartloom_settings/dartloom_settings.dart';
 import 'package:dartloom_storage/dartloom_storage.dart';
+import 'package:dartloom_storage_json_file/dartloom_storage_json_file.dart';
 import 'package:dartloom_sync/dartloom_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mini_todo/app/sync_configuration.dart';
@@ -123,6 +126,48 @@ void main() {
     expect((await repository.load()).single, second);
   });
 
+  test('serializes mutations for file-backed JSON stores', () async {
+    final store = _SerialOnlyJsonStore();
+    final repository = JsonStoreTodoRepository(store);
+    final todos = [
+      Todo(
+        id: 'one',
+        title: 'First task',
+        granularity: TodoGranularity.day,
+        createdAt: now,
+      ),
+      Todo(
+        id: 'two',
+        title: 'Second task',
+        granularity: TodoGranularity.week,
+        createdAt: now,
+      ),
+    ];
+
+    await repository.save(todos);
+
+    expect(await repository.load(), todos);
+    expect(store.maximumConcurrentMutations, 1);
+  });
+
+  test('persists one new task in the real JSON file store', () async {
+    final directory = await Directory.systemTemp.createTemp('mini_todo_save');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}${Platform.pathSeparator}data.json');
+    final repository = JsonStoreTodoRepository(JsonFileStore(file));
+    final todo = Todo(
+      id: 'one',
+      title: 'Only task',
+      granularity: TodoGranularity.day,
+      createdAt: now,
+    );
+
+    await repository.save([todo]);
+
+    expect(await JsonStoreTodoRepository(JsonFileStore(file)).load(), [todo]);
+    expect(File('${file.path}.tmp').existsSync(), isFalse);
+  });
+
   test('migrates the old combined todo list to independent records', () async {
     final store = MemoryJsonStore();
     final todo = Todo(
@@ -173,4 +218,41 @@ final class _RecordingSyncEngine implements SyncEngine {
 
   @override
   Future<SyncStatus> status() async => SyncStatus.succeeded;
+}
+
+final class _SerialOnlyJsonStore implements JsonStore {
+  final _values = <String, Object?>{};
+  var _activeMutations = 0;
+  var maximumConcurrentMutations = 0;
+
+  @override
+  Future<void> delete(String key) => _mutate(() => _values.remove(key));
+
+  @override
+  Future<List<String>> list({String prefix = ''}) async =>
+      (_values.keys.where((key) => key.startsWith(prefix)).toList()..sort());
+
+  @override
+  Future<Object?> read(String key) async => _values[key];
+
+  @override
+  Future<void> write(String key, Object? value) =>
+      _mutate(() => _values[key] = value);
+
+  Future<void> _mutate(void Function() mutation) async {
+    _activeMutations++;
+    maximumConcurrentMutations = maximumConcurrentMutations < _activeMutations
+        ? _activeMutations
+        : maximumConcurrentMutations;
+    if (_activeMutations > 1) {
+      _activeMutations--;
+      throw StateError('Concurrent JSON mutation');
+    }
+    try {
+      await Future<void>.delayed(Duration.zero);
+      mutation();
+    } finally {
+      _activeMutations--;
+    }
+  }
 }

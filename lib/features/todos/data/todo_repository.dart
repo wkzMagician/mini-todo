@@ -52,13 +52,13 @@ class JsonStoreTodoRepository implements TodoRepository {
         .toSet();
     final nextKeys = <String>{};
 
-    await Future.wait([
-      for (final entry in todos.indexed)
-        _writeTodo(entry.$1, entry.$2, nextKeys),
-      for (final key in existingKeys)
-        if (!nextKeys.contains(key)) _store.delete(key),
-      _store.delete(TodoStorageKeys.legacyTodosKey),
-    ]);
+    for (final entry in todos.indexed) {
+      await _writeTodo(entry.$1, entry.$2, nextKeys);
+    }
+    for (final key in existingKeys) {
+      if (!nextKeys.contains(key)) await _store.delete(key);
+    }
+    await _store.delete(TodoStorageKeys.legacyTodosKey);
   }
 
   Future<List<Todo>> _migrateLegacyTodos() async {
