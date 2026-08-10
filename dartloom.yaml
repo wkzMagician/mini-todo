@@ -2,6 +2,7 @@ schema_version: 2
 
 app:
   name: "mini_todo"
+  package_name: "mini-todo"
   organization: "com.example"
   description: "A compact multilingual desktop todo application."
 
@@ -10,7 +11,7 @@ platforms:
   ios: false
   windows: true
   macos: true
-  linux: false
+  linux: true
   web: false
 
 capabilities:
