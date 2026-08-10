@@ -57,6 +57,7 @@ capabilities:
         implementation: "tray"
         options:
           icon_path: "windows/runner/resources/app_icon.ico"
+          icon_path_linux: "assets/tray_icon.png"
           tooltip: "Mini Todo"
 
 sources:

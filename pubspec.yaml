@@ -36,7 +36,7 @@ dependencies:
   dartloom_logging: ^0.2.0
   dartloom_logging_logger: ^0.1.0
   dartloom_resident: ^0.3.0
-  dartloom_resident_tray: ^0.2.0
+  dartloom_resident_tray: ^0.2.1
   dartloom_runtime: ^0.1.0
   dartloom_settings: ^0.2.0
   dartloom_settings_shared_preferences: ^0.1.0
@@ -77,6 +77,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/tray_icon.png
     - windows/runner/resources/app_icon.ico
 
   # To add assets to your application, add an assets section, like this:
@@ -115,65 +116,81 @@ dependency_overrides:
   dartloom_autostart:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_autostart
   dartloom_autostart_launch_at_startup:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_autostart_launch_at_startup
   dartloom_localization:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_localization
   dartloom_localization_gen_l10n:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_localization_gen_l10n
   dartloom_logging:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_logging
   dartloom_logging_logger:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_logging_logger
   dartloom_resident:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_resident
   dartloom_resident_tray:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_resident_tray
   dartloom_runtime:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_runtime
   dartloom_settings:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_settings
   dartloom_settings_shared_preferences:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_settings_shared_preferences
   dartloom_storage:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_storage
   dartloom_storage_json_file:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_storage_json_file
   dartloom_sync:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_sync
   dartloom_sync_etag:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_sync_etag
   dartloom_sync_webdav:
     git:
       url: https://github.com/wkzMagician/dartloom.git
+      ref: main
       path: packages/dartloom_sync_webdav
   # dartloom:overrides:end

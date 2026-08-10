@@ -11,4 +11,4 @@ jobs:
     with:
       build_android: true
       build_windows: true
-      build_linux: false
+      build_linux: true

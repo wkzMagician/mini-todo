@@ -55,6 +55,9 @@ Future<void> initializeDartloom({
       final value = TrayResidentService(
         tooltip:
             context.options['tooltip'] as String? ?? 'Dartloom application',
+        linuxIconPath: context.options['icon_path_linux'] as String?,
+        macosIconPath: context.options['icon_path_macos'] as String?,
+        windowsIconPath: context.options['icon_path_windows'] as String?,
       );
       await value.initialize(
         iconPath: context.options['icon_path'] as String,
@@ -220,6 +223,7 @@ Future<void> initializeDartloom({
         factory: "tray",
         options: <String, Object?>{
           "icon_path": "windows/runner/resources/app_icon.ico",
+          "icon_path_linux": "assets/tray_icon.png",
           "tooltip": "Mini Todo",
         },
       ),

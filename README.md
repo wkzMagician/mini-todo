@@ -1,6 +1,6 @@
 # Mini Todo
 
-Mini Todo 是一个 Windows 桌面待办应用，使用 Flutter 重构，并通过
+Mini Todo 是一个 Windows 和 Linux 桌面待办应用，使用 Flutter 重构，并通过
 Dartloom 管理设置、存储和同步能力。
 
 ## 功能
@@ -24,6 +24,8 @@ Dartloom 管理设置、存储和同步能力。
 
 ```bash
 flutter pub get
+flutter run -d linux
+# 或
 flutter run -d windows
 ```
 
