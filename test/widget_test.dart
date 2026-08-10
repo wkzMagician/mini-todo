@@ -37,4 +37,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Write a test'), findsNothing);
   });
+
+  testWidgets('runs without desktop-only capabilities', (tester) async {
+    await tester.pumpWidget(
+      DartloomApp(
+        repository: MemoryTodoRepository(),
+        settings: MemorySettingsStore(),
+        logger: MemoryLogger(),
+        initialLocale: const Locale('en'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mini Todo'), findsOneWidget);
+    expect(find.byTooltip('Close app'), findsNothing);
+  });
 }

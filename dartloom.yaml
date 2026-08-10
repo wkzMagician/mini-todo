@@ -33,6 +33,10 @@ capabilities:
     instances:
       default:
         implementation: "launch_at_startup"
+        platforms:
+          - "windows"
+          - "macos"
+          - "linux"
   sync:
     instances:
       default:
@@ -55,6 +59,10 @@ capabilities:
     instances:
       default:
         implementation: "tray"
+        platforms:
+          - "windows"
+          - "macos"
+          - "linux"
         options:
           icon_path: "windows/runner/resources/app_icon.ico"
           icon_path_linux: "assets/tray_icon.png"

@@ -4,6 +4,7 @@ import 'package:dartloom_runtime/dartloom_runtime.dart';
 import 'package:dartloom_settings/dartloom_settings.dart';
 import 'package:dartloom_storage/dartloom_storage.dart';
 import 'package:dartloom_sync/dartloom_sync.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../app/window_controller.dart';
@@ -11,6 +12,14 @@ import '../../../l10n/app_localizations.dart';
 import '../application/todo_controller.dart';
 import '../data/todo_repository.dart';
 import '../domain/todo.dart';
+
+bool get _usesDesktopWindowChrome =>
+    !kIsWeb &&
+    const {
+      TargetPlatform.windows,
+      TargetPlatform.macOS,
+      TargetPlatform.linux,
+    }.contains(defaultTargetPlatform);
 
 class TodoHomePage extends StatefulWidget {
   const TodoHomePage({
@@ -56,7 +65,11 @@ class _TodoHomePageState extends State<TodoHomePage> {
           widget.repository ??
           JsonStoreTodoRepository(Dartloom.get<JsonStore>(name: 'json')),
       settings: widget.settings ?? Dartloom.get<SettingsStore>(),
-      autostart: widget.autostart ?? Dartloom.get<AutostartService>(),
+      autostart:
+          widget.autostart ??
+          (Dartloom.contains<AutostartService>()
+              ? Dartloom.get<AutostartService>()
+              : null),
       logger: widget.logger ?? Dartloom.get<AppLogger>(),
       syncEngine:
           widget.syncEngine ??
@@ -68,7 +81,9 @@ class _TodoHomePageState extends State<TodoHomePage> {
       _syncRootPathController.text = _controller.syncRootPath;
       _syncUsernameController.text = _controller.syncUsername;
       _syncPasswordController.text = _controller.syncPassword;
-      _windowController.setCollapsed(_controller.collapsed);
+      if (_usesDesktopWindowChrome) {
+        _windowController.setCollapsed(_controller.collapsed);
+      }
     });
   }
 
@@ -89,7 +104,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
     animation: _controller,
     builder: (context, _) {
       final strings = AppLocalizations.of(context)!;
-      return Scaffold(body: _buildShell(context, strings));
+      return Scaffold(body: SafeArea(child: _buildShell(context, strings)));
     },
   );
 
@@ -119,16 +134,18 @@ class _TodoHomePageState extends State<TodoHomePage> {
         ),
         child: Row(
           children: [
-            _HeaderButton(
-              icon: _controller.collapsed
-                  ? Icons.keyboard_arrow_down
-                  : Icons.keyboard_arrow_up,
-              tooltip: _controller.collapsed
-                  ? strings.expand
-                  : strings.collapse,
-              onPressed: _toggleCollapsed,
-            ),
-            const SizedBox(width: 8),
+            if (_usesDesktopWindowChrome) ...[
+              _HeaderButton(
+                icon: _controller.collapsed
+                    ? Icons.keyboard_arrow_down
+                    : Icons.keyboard_arrow_up,
+                tooltip: _controller.collapsed
+                    ? strings.expand
+                    : strings.collapse,
+                onPressed: _toggleCollapsed,
+              ),
+              const SizedBox(width: 8),
+            ],
             Expanded(
               child: Listener(
                 behavior: HitTestBehavior.opaque,
@@ -162,13 +179,15 @@ class _TodoHomePageState extends State<TodoHomePage> {
               active: _controller.settingsOpen,
               onPressed: _controller.toggleSettings,
             ),
-            const SizedBox(width: 4),
-            _HeaderButton(
-              icon: Icons.close,
-              tooltip: strings.closeApp,
-              danger: true,
-              onPressed: _hide,
-            ),
+            if (_usesDesktopWindowChrome) ...[
+              const SizedBox(width: 4),
+              _HeaderButton(
+                icon: Icons.close,
+                tooltip: strings.closeApp,
+                danger: true,
+                onPressed: _hide,
+              ),
+            ],
           ],
         ),
       );
@@ -218,14 +237,16 @@ class _TodoHomePageState extends State<TodoHomePage> {
                 ),
               ],
             ),
-            const Divider(height: 16),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(strings.autoStart),
-              subtitle: Text(strings.autoStartHint),
-              value: _controller.openAtLogin,
-              onChanged: _controller.setOpenAtLogin,
-            ),
+            if (_controller.autostartAvailable) ...[
+              const Divider(height: 16),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(strings.autoStart),
+                subtitle: Text(strings.autoStartHint),
+                value: _controller.openAtLogin,
+                onChanged: _controller.setOpenAtLogin,
+              ),
+            ],
             if (_controller.syncAvailable) ...[
               const Divider(height: 20),
               _buildSyncSettings(context, strings),

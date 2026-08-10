@@ -16,7 +16,7 @@ class TodoController extends ChangeNotifier {
   TodoController({
     required TodoRepository repository,
     required SettingsStore settings,
-    required AutostartService autostart,
+    AutostartService? autostart,
     required AppLogger logger,
     this.syncEngine,
   }) : _repository = repository,
@@ -29,7 +29,7 @@ class TodoController extends ChangeNotifier {
 
   final TodoRepository _repository;
   final SettingsStore _settings;
-  final AutostartService _autostart;
+  final AutostartService? _autostart;
   final AppLogger _logger;
   final SyncEngine? syncEngine;
 
@@ -55,6 +55,7 @@ class TodoController extends ChangeNotifier {
   bool get collapsed => _collapsed;
   bool get settingsOpen => _settingsOpen;
   bool get openAtLogin => _openAtLogin;
+  bool get autostartAvailable => _autostart != null;
   bool get loading => _loading;
   String? get error => _error;
   bool get syncAvailable => syncEngine != null;
@@ -74,7 +75,7 @@ class TodoController extends ChangeNotifier {
       if (savedGranularity != null) {
         _selectedGranularity = TodoGranularityX.fromStorage(savedGranularity);
       }
-      _openAtLogin = await _autostart.isEnabled();
+      _openAtLogin = await _autostart?.isEnabled() ?? false;
       _syncUrl = await _readSetting(syncWebDavUrlKey);
       _syncRootPath = await _readSetting(syncWebDavRootPathKey);
       _syncUsername = await _readSetting(syncWebDavUsernameKey);
@@ -206,14 +207,16 @@ class TodoController extends ChangeNotifier {
   }
 
   Future<void> setOpenAtLogin(bool enabled) async {
+    final autostart = _autostart;
+    if (autostart == null) return;
     _clearError();
     try {
       if (enabled) {
-        await _autostart.enable();
+        await autostart.enable();
       } else {
-        await _autostart.disable();
+        await autostart.disable();
       }
-      _openAtLogin = await _autostart.isEnabled();
+      _openAtLogin = await autostart.isEnabled();
       notifyListeners();
     } catch (error, stackTrace) {
       _fail('Failed to update launch-at-login.', error, stackTrace);

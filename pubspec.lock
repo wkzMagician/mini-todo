@@ -212,11 +212,11 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/dartloom_sync_webdav"
-      ref: main
-      resolved-ref: "6c258896f6b72d6b4db7e9a6a1a902a6fbb5b02b"
+      ref: "codex/webdav-android-permission"
+      resolved-ref: "3b74e35b42c3f89916ce71415dce8bb1908cd15d"
       url: "https://github.com/wkzMagician/dartloom.git"
     source: git
-    version: "0.1.0"
+    version: "0.1.1"
   fake_async:
     dependency: transitive
     description:

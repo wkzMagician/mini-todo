@@ -191,6 +191,6 @@ dependency_overrides:
   dartloom_sync_webdav:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: main
+      ref: codex/webdav-android-permission
       path: packages/dartloom_sync_webdav
   # dartloom:overrides:end
