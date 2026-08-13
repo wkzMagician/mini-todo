@@ -307,7 +307,7 @@ Future<void> initializeDartloom({
             },
             "discovery": <String, Object?>{
               "remote_changes": "auto",
-              "poll_interval": "60s",
+              "poll_interval": "5m",
               "safety_reconcile_interval": "15m",
             },
             "execution": <String, Object?>{
@@ -340,7 +340,7 @@ Future<void> initializeDartloom({
             },
             "platforms": <String, Object?>{
               "android": <String, Object?>{
-                "discovery": <String, Object?>{"poll_interval": "2m"},
+                "discovery": <String, Object?>{"poll_interval": "5m"},
                 "background": <String, Object?>{
                   "enabled": true,
                   "enqueue_on_pending": true,
@@ -353,13 +353,13 @@ Future<void> initializeDartloom({
                 },
               },
               "windows": <String, Object?>{
-                "discovery": <String, Object?>{"poll_interval": "30s"},
+                "discovery": <String, Object?>{"poll_interval": "5m"},
               },
               "macos": <String, Object?>{
-                "discovery": <String, Object?>{"poll_interval": "30s"},
+                "discovery": <String, Object?>{"poll_interval": "5m"},
               },
               "linux": <String, Object?>{
-                "discovery": <String, Object?>{"poll_interval": "30s"},
+                "discovery": <String, Object?>{"poll_interval": "5m"},
               },
             },
           },
