@@ -296,23 +296,36 @@ class TodoController extends ChangeNotifier {
   }) async {
     final service = syncService;
     if (service == null) return;
-    final saved = await service.saveProfile(
-      SyncProfileDraft(
-        id: _activeSyncProfileId ?? 'default',
-        label: 'Default',
-        backend: 'webdav',
-        options: {
-          'base_url': url.trim(),
-          'root_path': rootPath.trim().isEmpty ? 'MiniTodo' : rootPath.trim(),
-          'username': username,
-        },
-        secrets: {if (password.isNotEmpty) 'password': password},
-      ),
-    );
-    if (!saved.isActive) await service.activateProfile(saved.id);
-    _applyProfile(saved);
-    _syncMessage = null;
-    notifyListeners();
+    try {
+      final saved = await service.saveProfile(
+        SyncProfileDraft(
+          id: _activeSyncProfileId ?? 'default',
+          label: 'Default',
+          backend: 'webdav',
+          options: {
+            'base_url': url.trim(),
+            'root_path': rootPath.trim().isEmpty ? 'MiniTodo' : rootPath.trim(),
+            'username': username,
+          },
+          secrets: {if (password.isNotEmpty) 'password': password},
+        ),
+      );
+      // Re-open the profile unconditionally. The default profile is already
+      // active (id 'default'), so relying on saved.isActive would skip this
+      // step, leave the coordinator holding the previously-opened (empty)
+      // replica, and make every sync fail with "No configured active sync
+      // profile." Re-opening also triggers the sync-on-activate policy.
+      await service.activateProfile(saved.id);
+      _applyProfile(saved);
+      _syncStatus = SyncPhase.syncing;
+      _syncMessage = null;
+      notifyListeners();
+    } on FormatException catch (error, stackTrace) {
+      _logger.error('Invalid sync configuration.', error, stackTrace);
+      _syncStatus = SyncPhase.failed;
+      _syncMessage = error.message.toString();
+      notifyListeners();
+    }
   }
 
   Future<SyncRunReport?> sync() async {
