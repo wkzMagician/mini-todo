@@ -4,11 +4,90 @@ on:
     tags: ['v*']
   workflow_dispatch:
 jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - uses: ilammy/msvc-dev-cmd@v1
+      - run: choco install innosetup -y
+      - shell: pwsh
+        run: |
+          flutter pub get
+          flutter build windows --release
+          $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([^+\s]+)').Matches.Groups[1].Value
+          $iscc = (Get-Command iscc.exe).Source
+          $release = (Resolve-Path 'build/windows/x64/runner/Release').Path
+          New-Item -ItemType Directory -Force dist | Out-Null
+          @"
+          [Setup]
+          AppName=Mini Todo
+          AppVersion=$version
+          DefaultDirName={autopf}\Mini Todo
+          OutputDir=$(Resolve-Path dist)
+          OutputBaseFilename=mini-todo-$version-windows-x64-setup
+          Compression=lzma
+          SolidCompression=yes
+          [Files]
+          Source: "$release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+          [Icons]
+          Name: "{autoprograms}\Mini Todo"; Filename: "{app}\mini_todo.exe"
+          "@ | Set-Content -Path dist/windows.iss
+          & $iscc (Resolve-Path dist/windows.iss)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*-setup.exe
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: sudo apt-get update && sudo apt-get install -y dpkg-dev
+      - shell: bash
+        run: |
+          flutter pub get
+          flutter build linux --release
+          version=$(sed -n 's/^version: *\([^+ ]*\).*/\1/p' pubspec.yaml)
+          root="$RUNNER_TEMP/mini-todo-$version"
+          mkdir -p "$root/DEBIAN" "$root/usr/lib/mini_todo" "$root/usr/bin" dist
+          cp -a build/linux/x64/release/bundle/. "$root/usr/lib/mini_todo/"
+          printf '#!/bin/sh\nexec /usr/lib/mini_todo/mini_todo "$@"\n' > "$root/usr/bin/mini-todo"
+          chmod 755 "$root/usr/bin/mini-todo"
+          printf 'Package: mini-todo\nVersion: %s\nSection: utils\nPriority: optional\nArchitecture: amd64\nMaintainer: Mini Todo\nDepends: libgtk-3-0\nDescription: Mini Todo task manager\n' "$version" > "$root/DEBIAN/control"
+          dpkg-deb --build --root-owner-group "$root" "dist/mini-todo-$version-linux-amd64.deb"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*.deb
+
   release:
-    uses: wkzMagician/dartloom/.github/workflows/flutter_release.yml@main
+    needs: [android, windows, linux]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-    with:
-      build_android: true
-      build_windows: true
-      build_linux: true
+    steps:
+      - uses: actions/download-artifact@v4
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: '**/*'
