@@ -52,4 +52,22 @@ void main() {
     expect(find.text('Mini Todo'), findsOneWidget);
     expect(find.byTooltip('Close app'), findsNothing);
   });
+
+  testWidgets('opens settings as a dedicated full-page view', (tester) async {
+    await tester.pumpWidget(buildTestApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('设置'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('设置'), findsOneWidget);
+    expect(find.text('今天'), findsNothing);
+    expect(find.byTooltip('取消编辑'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('取消编辑'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mini Todo'), findsOneWidget);
+    expect(find.text('今天'), findsWidgets);
+  });
 }

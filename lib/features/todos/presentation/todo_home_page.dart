@@ -123,99 +123,111 @@ class _TodoHomePageState extends State<TodoHomePage> {
         ),
       );
 
-  Widget _buildHeader(BuildContext context, AppLocalizations strings) =>
-      Container(
-        constraints: const BoxConstraints(minHeight: 54),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(bottom: BorderSide(color: Color(0xffd8e2e8))),
-        ),
-        child: Row(
-          children: [
-            if (_usesDesktopWindowChrome) ...[
-              _HeaderButton(
-                icon: _controller.collapsed
-                    ? Icons.keyboard_arrow_down
-                    : Icons.keyboard_arrow_up,
-                tooltip: _controller.collapsed
-                    ? strings.expand
-                    : strings.collapse,
-                onPressed: _toggleCollapsed,
-              ),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: Listener(
-                behavior: HitTestBehavior.opaque,
-                onPointerDown: (_) => _windowController.startDragging(),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      strings.appTitle,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      strings.taskSummary(
-                        _controller.selectedGranularity.localizedLabel(strings),
-                        _controller.visibleTodos.length,
-                      ),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xff60717c),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            _HeaderButton(
-              icon: Icons.settings_outlined,
-              tooltip: strings.settings,
-              active: _controller.settingsOpen,
-              onPressed: _controller.toggleSettings,
-            ),
-            if (_usesDesktopWindowChrome) ...[
-              const SizedBox(width: 4),
-              _HeaderButton(
-                icon: Icons.close,
-                tooltip: strings.closeApp,
-                danger: true,
-                onPressed: _hide,
-              ),
-            ],
-          ],
-        ),
-      );
-
-  Widget _buildPanel(BuildContext context, AppLocalizations strings) => Padding(
-    padding: const EdgeInsets.all(12),
-    child: Column(
+  Widget _buildHeader(
+    BuildContext context,
+    AppLocalizations strings,
+  ) => Container(
+    constraints: const BoxConstraints(minHeight: 54),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    decoration: const BoxDecoration(
+      color: Colors.white,
+      border: Border(bottom: BorderSide(color: Color(0xffd8e2e8))),
+    ),
+    child: Row(
       children: [
-        if (_controller.settingsOpen)
-          Flexible(
-            fit: FlexFit.loose,
-            child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: _buildSettings(context, strings),
+        if (_usesDesktopWindowChrome) ...[
+          _HeaderButton(
+            icon: _controller.collapsed
+                ? Icons.keyboard_arrow_down
+                : Icons.keyboard_arrow_up,
+            tooltip: _controller.collapsed ? strings.expand : strings.collapse,
+            onPressed: _toggleCollapsed,
+          ),
+          const SizedBox(width: 8),
+        ],
+        Expanded(
+          child: Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: (_) => _windowController.startDragging(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _controller.settingsOpen
+                      ? strings.settings
+                      : strings.appTitle,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                if (!_controller.settingsOpen)
+                  Text(
+                    strings.taskSummary(
+                      _controller.selectedGranularity.localizedLabel(strings),
+                      _controller.visibleTodos.length,
+                    ),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: const Color(0xff60717c),
+                    ),
+                  ),
+              ],
             ),
           ),
-        _buildTabs(context, strings),
-        const SizedBox(height: 10),
-        Expanded(child: _buildTaskList(context, strings)),
-        const SizedBox(height: 10),
-        _buildNewTaskForm(context, strings),
-        if (_controller.error != null)
-          _MessageText(text: _controller.error!, isError: true),
+        ),
+        _HeaderButton(
+          icon: _controller.settingsOpen
+              ? Icons.arrow_back
+              : Icons.settings_outlined,
+          tooltip: _controller.settingsOpen
+              ? strings.cancelEdit
+              : strings.settings,
+          active: false,
+          onPressed: _controller.toggleSettings,
+        ),
+        if (_usesDesktopWindowChrome) ...[
+          const SizedBox(width: 4),
+          _HeaderButton(
+            icon: Icons.close,
+            tooltip: strings.closeApp,
+            danger: true,
+            onPressed: _hide,
+          ),
+        ],
       ],
     ),
   );
 
+  Widget _buildPanel(BuildContext context, AppLocalizations strings) {
+    if (_controller.settingsOpen) {
+      return Padding(
+        padding: const EdgeInsets.all(12),
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: _buildSettings(context, strings),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          _buildTabs(context, strings),
+          const SizedBox(height: 10),
+          Expanded(child: _buildTaskList(context, strings)),
+          const SizedBox(height: 10),
+          _buildNewTaskForm(context, strings),
+          if (_controller.error != null)
+            _MessageText(text: _controller.error!, isError: true),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSettings(BuildContext context, AppLocalizations strings) =>
       Container(
+        width: double.infinity,
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: _panelDecoration(),
@@ -245,12 +257,15 @@ class _TodoHomePageState extends State<TodoHomePage> {
             ),
             if (_controller.autostartAvailable) ...[
               const Divider(height: 16),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(strings.autoStart),
-                subtitle: Text(strings.autoStartHint),
-                value: _controller.openAtLogin,
-                onChanged: _controller.setOpenAtLogin,
+              Material(
+                color: Colors.transparent,
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(strings.autoStart),
+                  subtitle: Text(strings.autoStartHint),
+                  value: _controller.openAtLogin,
+                  onChanged: _controller.setOpenAtLogin,
+                ),
               ),
             ],
             if (_controller.syncAvailable) ...[
