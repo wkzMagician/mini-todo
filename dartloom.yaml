@@ -65,7 +65,7 @@ capabilities:
               max_delay: "10s"
           discovery:
             remote_changes: "auto"
-            poll_interval: "60s"
+            poll_interval: "5m"
             safety_reconcile_interval: "15m"
           execution:
             timeout: "2m"
@@ -97,7 +97,7 @@ capabilities:
           platforms:
             android:
               discovery:
-                poll_interval: "2m"
+                poll_interval: "5m"
               background:
                 enabled: true
                 enqueue_on_pending: true
@@ -109,13 +109,13 @@ capabilities:
                 timeout: "2m"
             windows:
               discovery:
-                poll_interval: "30s"
+                poll_interval: "5m"
             macos:
               discovery:
-                poll_interval: "30s"
+                poll_interval: "5m"
             linux:
               discovery:
-                poll_interval: "30s"
+                poll_interval: "5m"
   localization:
     instances:
       default:

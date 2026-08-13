@@ -39,10 +39,10 @@ and must not reproduce these triggers.
 
 | Sync instance | Platform | Mode | Remote discovery | Poll interval | System background |
 | --- | --- | --- | --- | --- | --- |
-| `sync.default` | android | automatic | auto | 2m | enabled |
-| `sync.default` | windows | automatic | auto | 30s | disabled |
-| `sync.default` | macos | automatic | auto | 30s | disabled |
-| `sync.default` | linux | automatic | auto | 30s | disabled |
+| `sync.default` | android | automatic | auto | 5m | enabled |
+| `sync.default` | windows | automatic | auto | 5m | disabled |
+| `sync.default` | macos | automatic | auto | 5m | disabled |
+| `sync.default` | linux | automatic | auto | 5m | disabled |
 
 
 Before finishing, run `dart format .`, `flutter analyze`, and `flutter test`.
