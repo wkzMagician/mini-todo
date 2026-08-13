@@ -5,8 +5,9 @@ This project is managed by Dartloom.
 1. Read `dartloom.yaml` before changing infrastructure.
 2. Feature code depends on capability contracts and obtains implementations with
    `Dartloom.get<T>(name: ...)`; do not import adapter packages in feature code.
-3. Register app-owned implementations through `initializeDartloom` custom
-   factories. Do not bypass or replace the generated registry wiring.
+3. Register app-owned implementations by passing their factory map to
+   `bootstrapDartloom(customFactories: ...)`. Keep factory implementations in
+   application-owned files; do not add them to generated capability files.
 4. Business code belongs in `lib/features`; shared app glue belongs in `lib/app`.
 5. Dartloom owns `lib/capabilities/capabilities.dart` and
    `lib/capabilities/bootstrap.dart`. Application files, including `lib/app`
@@ -24,7 +25,7 @@ optional feature UI instead of duplicating operating-system checks.
 | --- | --- | --- | --- |
 | `settings.default` | `dartloom_settings` | `shared_preferences` | android, windows, macos, linux |
 | `settings.sync_secrets` | `dartloom_settings` | `secure_storage` | android, windows, macos, linux |
-| `storage.json` | `dartloom_storage` | `json_directory` | android, windows, macos, linux |
+| `storage.json` | `dartloom_storage` | `app_file_replica` | android, windows, macos, linux |
 | `logging.default` | `dartloom_logging` | `logger` | android, windows, macos, linux |
 | `autostart.default` | `dartloom_autostart` | `launch_at_startup` | windows, macos, linux |
 | `sync.default` | `dartloom_sync` | `etag` | android, windows, macos, linux |
