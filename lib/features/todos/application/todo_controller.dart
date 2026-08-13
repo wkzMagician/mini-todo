@@ -45,7 +45,6 @@ class TodoController extends ChangeNotifier {
   SyncPhase _syncStatus = SyncPhase.idle;
   String? _syncMessage;
   String _syncUrl = '';
-  String _syncRootPath = '';
   String _syncUsername = '';
   String _syncPassword = '';
   Todo? _lastCompletedTodo;
@@ -68,7 +67,6 @@ class TodoController extends ChangeNotifier {
   String? get syncMessage => _syncMessage;
   bool get syncConfigured => _syncUrl.trim().isNotEmpty;
   String get syncUrl => _syncUrl;
-  String get syncRootPath => _syncRootPath;
   String get syncUsername => _syncUsername;
   String get syncPassword => _syncPassword;
 
@@ -102,7 +100,6 @@ class TodoController extends ChangeNotifier {
         .firstOrNull;
     final legacyUrl = await _readSetting(syncWebDavUrlKey);
     if ((active == null || active.backend.isEmpty) && legacyUrl.isNotEmpty) {
-      final legacyRoot = await _readSetting(syncWebDavRootPathKey);
       final legacyUsername = await _readSetting(syncWebDavUsernameKey);
       final legacyPassword = await _readSetting(syncWebDavPasswordKey);
       active = await service.saveProfile(
@@ -110,18 +107,14 @@ class TodoController extends ChangeNotifier {
           id: active?.id ?? 'default',
           label: 'Default',
           backend: 'webdav',
-          options: {
-            'base_url': legacyUrl,
-            'root_path': legacyRoot.isEmpty ? 'MiniTodo' : legacyRoot,
-            'username': legacyUsername,
-          },
+          options: {'base_url': legacyUrl, 'username': legacyUsername},
           secrets: {if (legacyPassword.isNotEmpty) 'password': legacyPassword},
         ),
       );
       await service.activateProfile(active.id);
       await Future.wait([
         _settings.remove(syncWebDavUrlKey),
-        _settings.remove(syncWebDavRootPathKey),
+        _settings.remove('sync.webdav.root_path'),
         _settings.remove(syncWebDavUsernameKey),
         _settings.remove(syncWebDavPasswordKey),
       ]);
@@ -132,7 +125,6 @@ class TodoController extends ChangeNotifier {
   void _applyProfile(SyncProfile profile) {
     _activeSyncProfileId = profile.id;
     _syncUrl = profile.options['base_url'] as String? ?? '';
-    _syncRootPath = profile.options['root_path'] as String? ?? '';
     _syncUsername = profile.options['username'] as String? ?? '';
     _syncPassword = '';
   }
@@ -290,7 +282,6 @@ class TodoController extends ChangeNotifier {
 
   Future<void> saveSyncConfiguration({
     required String url,
-    required String rootPath,
     required String username,
     required String password,
   }) async {
@@ -302,11 +293,7 @@ class TodoController extends ChangeNotifier {
           id: _activeSyncProfileId ?? 'default',
           label: 'Default',
           backend: 'webdav',
-          options: {
-            'base_url': url.trim(),
-            'root_path': rootPath.trim().isEmpty ? 'MiniTodo' : rootPath.trim(),
-            'username': username,
-          },
+          options: {'base_url': url.trim(), 'username': username},
           secrets: {if (password.isNotEmpty) 'password': password},
         ),
       );

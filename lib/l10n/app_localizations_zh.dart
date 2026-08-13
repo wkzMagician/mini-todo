@@ -107,9 +107,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get syncWebDavUrl => 'WebDAV 地址';
 
   @override
-  String get syncWebDavRootPath => '远程目录';
-
-  @override
   String get syncWebDavUsername => '用户名';
 
   @override

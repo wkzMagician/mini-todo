@@ -51,7 +51,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
   final _newTitleController = TextEditingController();
   final _editTitleController = TextEditingController();
   final _syncUrlController = TextEditingController();
-  final _syncRootPathController = TextEditingController();
   final _syncUsernameController = TextEditingController();
   final _syncPasswordController = TextEditingController();
   TodoGranularity _newGranularity = TodoGranularity.day;
@@ -80,7 +79,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
     _controller.initialize().then((_) {
       if (!mounted) return;
       _syncUrlController.text = _controller.syncUrl;
-      _syncRootPathController.text = _controller.syncRootPath;
       _syncUsernameController.text = _controller.syncUsername;
       _syncPasswordController.text = _controller.syncPassword;
       if (_usesDesktopWindowChrome) {
@@ -94,7 +92,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
     _newTitleController.dispose();
     _editTitleController.dispose();
     _syncUrlController.dispose();
-    _syncRootPathController.dispose();
     _syncUsernameController.dispose();
     _syncPasswordController.dispose();
     _controller.dispose();
@@ -198,7 +195,14 @@ class _TodoHomePageState extends State<TodoHomePage> {
     padding: const EdgeInsets.all(12),
     child: Column(
       children: [
-        if (_controller.settingsOpen) _buildSettings(context, strings),
+        if (_controller.settingsOpen)
+          Flexible(
+            fit: FlexFit.loose,
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: _buildSettings(context, strings),
+            ),
+          ),
         _buildTabs(context, strings),
         const SizedBox(height: 10),
         Expanded(child: _buildTaskList(context, strings)),
@@ -275,28 +279,12 @@ class _TodoHomePageState extends State<TodoHomePage> {
             keyboardType: TextInputType.url,
           ),
           const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _syncRootPathController,
-                  decoration: InputDecoration(
-                    labelText: strings.syncWebDavRootPath,
-                    isDense: true,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: TextField(
-                  controller: _syncUsernameController,
-                  decoration: InputDecoration(
-                    labelText: strings.syncWebDavUsername,
-                    isDense: true,
-                  ),
-                ),
-              ),
-            ],
+          TextField(
+            controller: _syncUsernameController,
+            decoration: InputDecoration(
+              labelText: strings.syncWebDavUsername,
+              isDense: true,
+            ),
           ),
           const SizedBox(height: 6),
           TextField(
@@ -536,7 +524,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
 
   Future<void> _saveSyncSettings() => _controller.saveSyncConfiguration(
     url: _syncUrlController.text,
-    rootPath: _syncRootPathController.text,
     username: _syncUsernameController.text,
     password: _syncPasswordController.text,
   );

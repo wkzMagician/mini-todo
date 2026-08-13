@@ -1,4 +1,4 @@
-schema_version: 3
+schema_version: 4
 
 app:
   name: "mini_todo"
@@ -24,9 +24,22 @@ capabilities:
   storage:
     instances:
       json:
-        implementation: "json_file"
+        implementation: "json_directory"
         options:
-          path: "mini_todo/data.json"
+          path: "MiniTodo"
+          metadata_path: "mini_todo/sync-metadata/MiniTodo"
+          hierarchical: false
+          legacy_json_path: "mini_todo/data.json"
+          legacy_key_prefix: "__dartloom_profiles/default/"
+          allowed_keys:
+            - ".mini-todo.json"
+          allowed_prefixes:
+            - "todo-"
+          seed:
+            .mini-todo.json:
+              application: "mini-todo"
+              layout: 1
+              format: "json-files"
   logging:
     instances:
       default:
@@ -43,8 +56,7 @@ capabilities:
     instances:
       default:
         implementation: "etag"
-        stores:
-          - "storage.json"
+        replica: "storage.json"
         backend:
           implementation: "webdav"
           options:
@@ -53,6 +65,11 @@ capabilities:
             request_timeout: "30s"
             max_parallel_requests: 4
             create_missing_collections: true
+            hierarchical: false
+            probe_depth_infinity: false
+            legacy_collection: "json"
+            legacy_key_prefix: "todo-"
+            listing_limit_hint: 750
         policy:
           mode: "automatic"
           triggers:

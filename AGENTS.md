@@ -24,7 +24,7 @@ optional feature UI instead of duplicating operating-system checks.
 | --- | --- | --- | --- |
 | `settings.default` | `dartloom_settings` | `shared_preferences` | android, windows, macos, linux |
 | `settings.sync_secrets` | `dartloom_settings` | `secure_storage` | android, windows, macos, linux |
-| `storage.json` | `dartloom_storage` | `json_file` | android, windows, macos, linux |
+| `storage.json` | `dartloom_storage` | `json_directory` | android, windows, macos, linux |
 | `logging.default` | `dartloom_logging` | `logger` | android, windows, macos, linux |
 | `autostart.default` | `dartloom_autostart` | `launch_at_startup` | windows, macos, linux |
 | `sync.default` | `dartloom_sync` | `etag` | android, windows, macos, linux |

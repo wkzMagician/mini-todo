@@ -34,7 +34,6 @@
   "loading": "正在读取任务"
   ,"sync": "同步"
   ,"syncWebDavUrl": "WebDAV 地址"
-  ,"syncWebDavRootPath": "远程目录"
   ,"syncWebDavUsername": "用户名"
   ,"syncWebDavPassword": "密码"
   ,"saveSync": "保存同步设置"
