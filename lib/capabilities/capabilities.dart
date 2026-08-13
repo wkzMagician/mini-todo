@@ -8,10 +8,14 @@ import 'package:dartloom_logging/dartloom_logging.dart';
 import 'dart:io';
 import 'package:dartloom_autostart/dartloom_autostart.dart';
 import 'package:dartloom_sync/dartloom_sync.dart';
+import 'package:dartloom_sync_storage/dartloom_sync_storage.dart';
+import 'package:dartloom_sync_flutter/dartloom_sync_flutter.dart';
+import 'package:dartloom_sync_workmanager/dartloom_sync_workmanager.dart';
 import 'package:dartloom_localization/dartloom_localization.dart';
 import 'package:mini_todo/l10n/app_localizations.dart';
 import 'package:dartloom_resident/dartloom_resident.dart';
 import 'package:dartloom_settings_shared_preferences/dartloom_settings_shared_preferences.dart';
+import 'package:dartloom_settings_secure_storage/dartloom_settings_secure_storage.dart';
 import 'package:dartloom_storage_json_file/dartloom_storage_json_file.dart';
 import 'package:dartloom_logging_logger/dartloom_logging_logger.dart';
 import 'package:dartloom_autostart_launch_at_startup/dartloom_autostart_launch_at_startup.dart';
@@ -22,16 +26,26 @@ import 'package:dartloom_resident_tray/dartloom_resident_tray.dart';
 
 Future<void> initializeDartloom({
   Map<String, DartloomFactory> customFactories = const {},
+  bool syncWorker = false,
 }) async {
   late final Map<String, DartloomFactory> factories;
   final officialFactories = <String, DartloomFactory>{
     'shared_preferences': (_) =>
         DartloomBinding<SettingsStore>(SharedPreferencesSettingsStore()),
+    'secure_storage': (_) =>
+        const DartloomBinding<SettingsStore>(SecureSettingsStore()),
     'json_file': (context) async {
       final value = await JsonFileStore.open(
         path: context.options['path'] as String? ?? 'dartloom/data.json',
       );
-      return DartloomBinding<JsonStore>(value);
+      final syncScope = context.options['sync_scope'] as String?;
+      if (syncScope == null) return DartloomBinding<JsonStore>(value);
+      final scoped = await ProfileScopedJsonStore.open(
+        value,
+        context.get<SyncProfileScope>(name: syncScope),
+        attachExistingData: context.options['sync_attach_existing'] != false,
+      );
+      return DartloomBinding<JsonStore>(scoped, dispose: scoped.close);
     },
     'logger': (_) => DartloomBinding<AppLogger>(LoggerAppLogger()),
     'launch_at_startup': (context) => DartloomBinding<AutostartService>(
@@ -65,32 +79,58 @@ Future<void> initializeDartloom({
       );
       return DartloomBinding<ResidentService>(value, dispose: value.dispose);
     },
-    'etag_object': (context) async {
-      final localStores = <String, LocalSyncStore>{};
+    'sync_profile_scope': (context) async {
+      final value = await SyncProfileScope.open(
+        context.get<SettingsStore>(),
+        context.name,
+      );
+      return DartloomBinding<SyncProfileScope>(value, dispose: value.dispose);
+    },
+    'etag': (context) async {
+      final localStores = <String, ProfileScopedJsonStore>{};
       for (final reference
           in (context.options['stores'] as List).cast<String>()) {
         final name = reference.substring('storage.'.length);
-        if (name == 'text') {
-          localStores[name] = TextLocalSyncStore(
-            context.get<TextStore>(name: name),
-          );
-        }
         if (name == 'json') {
-          localStores[name] = JsonLocalSyncStore(
-            context.get<JsonStore>(name: name),
-          );
-        }
-        if (name == 'database') {
-          localStores[name] = DatabaseLocalSyncStore(
-            context.get<DatabaseStore>(name: name),
-          );
+          final store = context.get<JsonStore>(name: name);
+          if (store is! ProfileScopedJsonStore) {
+            throw DartloomException(
+              'sync store storage.$name is not profile scoped.',
+            );
+          }
+          localStores[name] = store;
         }
       }
-      final remote = WebDavObjectStore(
-        baseUrl: Uri.parse(context.options['backend_base_url'] as String),
-        rootPath: context.options['backend_root_path'] as String? ?? 'Dartloom',
-        username: context.options['backend_username'] as String? ?? '',
-        password: context.options['backend_password'] as String? ?? '',
+      if (localStores.isEmpty) {
+        throw const DartloomException(
+          'etag sync currently requires storage.json.',
+        );
+      }
+      final scope = context.get<SyncProfileScope>(name: context.name);
+      final profiles = SettingsSyncProfileRepository(
+        instanceName: context.name,
+        metadata: context.get<SettingsStore>(),
+        secretsStore: context.get<SettingsStore>(name: 'sync_secrets'),
+        scope: scope,
+      );
+      final firstStore = localStores.values.first;
+      final state = JsonReconciliationStateRepository(
+        firstStore.raw,
+        instanceName: context.name,
+      );
+      final backend = WebDavBackendFactory(
+        defaultRootPath:
+            context.options['backend_root_path'] as String? ?? 'Dartloom',
+        connectTimeout: SyncPolicyCodec.parseDuration(
+          context.options['backend_connect_timeout'] as String,
+        ),
+        requestTimeout: SyncPolicyCodec.parseDuration(
+          context.options['backend_request_timeout'] as String,
+        ),
+        maxParallelRequests:
+            context.options['backend_max_parallel_requests'] as int,
+        createMissingCollections:
+            context.options['backend_create_missing_collections'] as bool,
       );
       SyncMergePolicy? merge;
       final mergeFactory = context.options['merge_factory'] as String?;
@@ -107,17 +147,37 @@ Future<void> initializeDartloom({
         }
         merge = binding.value as SyncMergePolicy;
       }
-      final state = JsonSyncStateStore(
-        context.get<JsonStore>(name: 'json'),
-        key: '__dartloom_sync/${context.name}',
-      );
-      return DartloomBinding<SyncEngine>(
-        EtagSyncEngine(
-          local: CompositeLocalSyncStore(localStores),
-          remote: remote,
-          stateStore: state,
-          merge: merge,
+      FlutterSyncRuntimeSignals? runtime;
+      if (!syncWorker) {
+        runtime = FlutterSyncRuntimeSignals();
+        await runtime.start();
+      }
+      final coordinator = SyncCoordinator(
+        instanceName: context.name,
+        policy: SyncPolicyCodec.resolve(
+          (context.options['policy'] as Map).cast<String, Object?>(),
+          _dartloomCurrentPlatform,
         ),
+        profiles: profiles,
+        localFactory: JsonLocalReplicaFactory(localStores),
+        stateRepository: state,
+        reconciler: const EtagReconciler(),
+        backends: {'webdav': backend},
+        runtimeSignals: runtime,
+        backgroundScheduler: syncWorker
+            ? null
+            : WorkmanagerSyncBackgroundScheduler(
+                callbackDispatcher: dartloomSyncCallbackDispatcher,
+              ),
+        merge: merge,
+      );
+      await coordinator.start();
+      return DartloomBinding<SyncService>(
+        coordinator,
+        dispose: () async {
+          await coordinator.dispose();
+          await runtime?.dispose();
+        },
       );
     },
   };
@@ -139,84 +199,200 @@ Future<void> initializeDartloom({
       "linux",
       "web",
     }))
+      DartloomRegistration<SyncProfileScope>(
+        capability: 'sync_profile',
+        name: "default",
+        factory: 'sync_profile_scope',
+        dependsOn: const [DartloomReference('settings', 'default')],
+      ),
+    if ((!syncWorker || true) &&
+        _dartloomSupportsCurrentPlatform(const {
+          "android",
+          "ios",
+          "windows",
+          "macos",
+          "linux",
+          "web",
+        }))
       DartloomRegistration<SettingsStore>(
         capability: 'settings',
         name: "default",
         factory: "shared_preferences",
         options: <String, Object?>{},
       ),
-    if (_dartloomSupportsCurrentPlatform(const {
-      "android",
-      "ios",
-      "windows",
-      "macos",
-      "linux",
-      "web",
-    }))
+    if ((!syncWorker || true) &&
+        _dartloomSupportsCurrentPlatform(const {
+          "android",
+          "ios",
+          "windows",
+          "macos",
+          "linux",
+          "web",
+        }))
+      DartloomRegistration<SettingsStore>(
+        capability: 'settings',
+        name: "sync_secrets",
+        factory: "secure_storage",
+        options: <String, Object?>{},
+      ),
+    if ((!syncWorker || true) &&
+        _dartloomSupportsCurrentPlatform(const {
+          "android",
+          "ios",
+          "windows",
+          "macos",
+          "linux",
+          "web",
+        }))
       DartloomRegistration<JsonStore>(
         capability: 'storage',
         name: "json",
         factory: "json_file",
-        options: <String, Object?>{"path": "mini_todo/data.json"},
+        options: <String, Object?>{
+          "path": "mini_todo/data.json",
+          "sync_scope": "default",
+          "sync_attach_existing": true,
+        },
+        dependsOn: const [DartloomReference('sync_profile', 'default')],
       ),
-    if (_dartloomSupportsCurrentPlatform(const {
-      "android",
-      "ios",
-      "windows",
-      "macos",
-      "linux",
-      "web",
-    }))
+    if ((!syncWorker || false) &&
+        _dartloomSupportsCurrentPlatform(const {
+          "android",
+          "ios",
+          "windows",
+          "macos",
+          "linux",
+          "web",
+        }))
       DartloomRegistration<AppLogger>(
         capability: 'logging',
         name: "default",
         factory: "logger",
         options: <String, Object?>{},
       ),
-    if (_dartloomSupportsCurrentPlatform(const {"windows", "macos", "linux"}))
+    if ((!syncWorker || false) &&
+        _dartloomSupportsCurrentPlatform(const {"windows", "macos", "linux"}))
       DartloomRegistration<AutostartService>(
         capability: 'autostart',
         name: "default",
         factory: "launch_at_startup",
         options: <String, Object?>{},
       ),
-    if (_dartloomSupportsCurrentPlatform(const {
-      "android",
-      "ios",
-      "windows",
-      "macos",
-      "linux",
-      "web",
-    }))
-      DartloomRegistration<SyncEngine>(
+    if ((!syncWorker || true) &&
+        _dartloomSupportsCurrentPlatform(const {
+          "android",
+          "ios",
+          "windows",
+          "macos",
+          "linux",
+          "web",
+        }))
+      DartloomRegistration<SyncService>(
         capability: 'sync',
         name: "default",
-        factory: "app_sync",
+        factory: "etag",
         options: <String, Object?>{
           "stores": ["storage.json"],
-          "backend_base_url": "https://example.invalid",
+          "policy": <String, Object?>{
+            "mode": "automatic",
+            "triggers": <String, Object?>{
+              "startup": true,
+              "resume": true,
+              "connectivity_restored": true,
+              "local_write": <String, Object?>{
+                "enabled": true,
+                "debounce": "2s",
+                "max_delay": "10s",
+              },
+            },
+            "discovery": <String, Object?>{
+              "remote_changes": "auto",
+              "poll_interval": "60s",
+              "safety_reconcile_interval": "15m",
+            },
+            "execution": <String, Object?>{
+              "timeout": "2m",
+              "busy_behavior": "coalesce_then_rerun",
+              "max_parallel_transfers": 4,
+              "max_object_size": "20mb",
+            },
+            "retry": <String, Object?>{
+              "strategy": "exponential",
+              "initial_delay": "5s",
+              "fixed_delay": "30s",
+              "sequence": ["5s", "30s", "2m", "10m"],
+              "multiplier": 3,
+              "max_delay": "10m",
+              "jitter": "20%",
+              "max_attempts": 0,
+            },
+            "conflicts": <String, Object?>{
+              "strategy": "preserve",
+              "delete_vs_update": "conflict",
+            },
+            "state": <String, Object?>{
+              "base_payload": "always",
+              "tombstone_retention": "30d",
+            },
+            "profiles": <String, Object?>{
+              "sync_on_activate": true,
+              "existing_data": "attach_to_default",
+            },
+            "platforms": <String, Object?>{
+              "android": <String, Object?>{
+                "discovery": <String, Object?>{"poll_interval": "2m"},
+                "background": <String, Object?>{
+                  "enabled": true,
+                  "enqueue_on_pending": true,
+                  "periodic_interval": "15m",
+                  "flex_interval": "5m",
+                  "network": "connected",
+                  "requires_battery_not_low": true,
+                  "requires_charging": false,
+                  "timeout": "2m",
+                },
+              },
+              "windows": <String, Object?>{
+                "discovery": <String, Object?>{"poll_interval": "30s"},
+              },
+              "macos": <String, Object?>{
+                "discovery": <String, Object?>{"poll_interval": "30s"},
+              },
+              "linux": <String, Object?>{
+                "discovery": <String, Object?>{"poll_interval": "30s"},
+              },
+            },
+          },
           "backend_root_path": "MiniTodo",
+          "backend_connect_timeout": "10s",
+          "backend_request_timeout": "30s",
+          "backend_max_parallel_requests": 4,
+          "backend_create_missing_collections": true,
         },
         dependsOn: const [
-          DartloomReference('settings', 'default'),
           DartloomReference('storage', 'json'),
+          DartloomReference('sync_profile', 'default'),
+          DartloomReference('settings', 'default'),
+          DartloomReference('settings', 'sync_secrets'),
         ],
       ),
-    if (_dartloomSupportsCurrentPlatform(const {
-      "android",
-      "ios",
-      "windows",
-      "macos",
-      "linux",
-      "web",
-    }))
+    if ((!syncWorker || false) &&
+        _dartloomSupportsCurrentPlatform(const {
+          "android",
+          "ios",
+          "windows",
+          "macos",
+          "linux",
+          "web",
+        }))
       DartloomRegistration<LocalizationService>(
         capability: 'localization',
         name: "default",
         factory: "gen_l10n",
         options: <String, Object?>{},
       ),
-    if (_dartloomSupportsCurrentPlatform(const {"windows", "macos", "linux"}))
+    if ((!syncWorker || false) &&
+        _dartloomSupportsCurrentPlatform(const {"windows", "macos", "linux"}))
       DartloomRegistration<ResidentService>(
         capability: 'resident',
         name: "default",
@@ -232,18 +408,32 @@ Future<void> initializeDartloom({
 
 Future<void> disposeDartloom() => Dartloom.dispose();
 
+@pragma('vm:entry-point')
+void dartloomSyncCallbackDispatcher() {
+  executeDartloomSyncWorker((instanceName) async {
+    await initializeDartloom(syncWorker: true);
+    try {
+      final service = Dartloom.get<SyncService>(name: instanceName);
+      return (await service.syncNow()).isSuccess;
+    } finally {
+      await disposeDartloom();
+    }
+  });
+}
+
+String get _dartloomCurrentPlatform => kIsWeb
+    ? 'web'
+    : switch (defaultTargetPlatform) {
+        TargetPlatform.android => 'android',
+        TargetPlatform.iOS => 'ios',
+        TargetPlatform.linux => 'linux',
+        TargetPlatform.macOS => 'macos',
+        TargetPlatform.windows => 'windows',
+        TargetPlatform.fuchsia => 'fuchsia',
+      };
+
 bool _dartloomSupportsCurrentPlatform(Set<String> platforms) {
-  final current = kIsWeb
-      ? 'web'
-      : switch (defaultTargetPlatform) {
-          TargetPlatform.android => 'android',
-          TargetPlatform.iOS => 'ios',
-          TargetPlatform.linux => 'linux',
-          TargetPlatform.macOS => 'macos',
-          TargetPlatform.windows => 'windows',
-          TargetPlatform.fuchsia => 'fuchsia',
-        };
-  return platforms.contains(current);
+  return platforms.contains(_dartloomCurrentPlatform);
 }
 
 ResidentConfiguration _dartloomResidentConfiguration(

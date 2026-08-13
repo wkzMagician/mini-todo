@@ -2,6 +2,8 @@
 // private implementation details.
 // ignore_for_file: prefer_initializing_formals
 
+import 'dart:async';
+
 import 'package:dartloom_autostart/dartloom_autostart.dart';
 import 'package:dartloom_logging/dartloom_logging.dart';
 import 'package:dartloom_settings/dartloom_settings.dart';
@@ -16,9 +18,9 @@ class TodoController extends ChangeNotifier {
   TodoController({
     required TodoRepository repository,
     required SettingsStore settings,
-    required AutostartService autostart,
+    AutostartService? autostart,
     required AppLogger logger,
-    this.syncEngine,
+    this.syncService,
   }) : _repository = repository,
        _settings = settings,
        _autostart = autostart,
@@ -29,9 +31,9 @@ class TodoController extends ChangeNotifier {
 
   final TodoRepository _repository;
   final SettingsStore _settings;
-  final AutostartService _autostart;
+  final AutostartService? _autostart;
   final AppLogger _logger;
-  final SyncEngine? syncEngine;
+  final SyncService? syncService;
 
   List<Todo> _todos = [];
   TodoGranularity _selectedGranularity = TodoGranularity.day;
@@ -40,7 +42,7 @@ class TodoController extends ChangeNotifier {
   bool _openAtLogin = false;
   bool _loading = true;
   String? _error;
-  SyncStatus _syncStatus = SyncStatus.idle;
+  SyncPhase _syncStatus = SyncPhase.idle;
   String? _syncMessage;
   String _syncUrl = '';
   String _syncRootPath = '';
@@ -48,6 +50,9 @@ class TodoController extends ChangeNotifier {
   String _syncPassword = '';
   Todo? _lastCompletedTodo;
   int? _lastCompletedIndex;
+  StreamSubscription<SyncSnapshot>? _syncSubscription;
+  String? _activeSyncProfileId;
+  int _localSyncRevision = 0;
 
   List<Todo> get todos => List.unmodifiable(_todos);
   List<Todo> get visibleTodos => filterTodos(_todos, _selectedGranularity);
@@ -55,10 +60,11 @@ class TodoController extends ChangeNotifier {
   bool get collapsed => _collapsed;
   bool get settingsOpen => _settingsOpen;
   bool get openAtLogin => _openAtLogin;
+  bool get autostartAvailable => _autostart != null;
   bool get loading => _loading;
   String? get error => _error;
-  bool get syncAvailable => syncEngine != null;
-  SyncStatus get syncStatus => _syncStatus;
+  bool get syncAvailable => syncService != null;
+  SyncPhase get syncStatus => _syncStatus;
   String? get syncMessage => _syncMessage;
   bool get syncConfigured => _syncUrl.trim().isNotEmpty;
   String get syncUrl => _syncUrl;
@@ -74,11 +80,8 @@ class TodoController extends ChangeNotifier {
       if (savedGranularity != null) {
         _selectedGranularity = TodoGranularityX.fromStorage(savedGranularity);
       }
-      _openAtLogin = await _autostart.isEnabled();
-      _syncUrl = await _readSetting(syncWebDavUrlKey);
-      _syncRootPath = await _readSetting(syncWebDavRootPathKey);
-      _syncUsername = await _readSetting(syncWebDavUsernameKey);
-      _syncPassword = await _readSetting(syncWebDavPasswordKey);
+      _openAtLogin = await _autostart?.isEnabled() ?? false;
+      await _initializeSyncProfile();
       _logger.info('Todo data loaded.');
     } catch (error, stackTrace) {
       _error = 'Failed to load tasks.';
@@ -87,7 +90,70 @@ class TodoController extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
-    if (syncAvailable && syncConfigured) await sync();
+  }
+
+  Future<void> _initializeSyncProfile() async {
+    final service = syncService;
+    if (service == null) return;
+    _syncSubscription = service.states.listen(_handleSyncSnapshot);
+    _localSyncRevision = service.snapshot.localRevision;
+    var active = (await service.listProfiles())
+        .where((profile) => profile.isActive)
+        .firstOrNull;
+    final legacyUrl = await _readSetting(syncWebDavUrlKey);
+    if ((active == null || active.backend.isEmpty) && legacyUrl.isNotEmpty) {
+      final legacyRoot = await _readSetting(syncWebDavRootPathKey);
+      final legacyUsername = await _readSetting(syncWebDavUsernameKey);
+      final legacyPassword = await _readSetting(syncWebDavPasswordKey);
+      active = await service.saveProfile(
+        SyncProfileDraft(
+          id: active?.id ?? 'default',
+          label: 'Default',
+          backend: 'webdav',
+          options: {
+            'base_url': legacyUrl,
+            'root_path': legacyRoot.isEmpty ? 'MiniTodo' : legacyRoot,
+            'username': legacyUsername,
+          },
+          secrets: {if (legacyPassword.isNotEmpty) 'password': legacyPassword},
+        ),
+      );
+      await service.activateProfile(active.id);
+      await Future.wait([
+        _settings.remove(syncWebDavUrlKey),
+        _settings.remove(syncWebDavRootPathKey),
+        _settings.remove(syncWebDavUsernameKey),
+        _settings.remove(syncWebDavPasswordKey),
+      ]);
+    }
+    if (active != null) _applyProfile(active);
+  }
+
+  void _applyProfile(SyncProfile profile) {
+    _activeSyncProfileId = profile.id;
+    _syncUrl = profile.options['base_url'] as String? ?? '';
+    _syncRootPath = profile.options['root_path'] as String? ?? '';
+    _syncUsername = profile.options['username'] as String? ?? '';
+    _syncPassword = '';
+  }
+
+  void _handleSyncSnapshot(SyncSnapshot snapshot) {
+    _syncStatus = snapshot.phase;
+    _syncMessage = snapshot.lastReport?.failure?.message;
+    if (snapshot.localRevision != _localSyncRevision) {
+      _localSyncRevision = snapshot.localRevision;
+      unawaited(_reloadAfterSync());
+    }
+    notifyListeners();
+  }
+
+  Future<void> _reloadAfterSync() async {
+    try {
+      _todos = await _repository.load();
+      notifyListeners();
+    } catch (error, stackTrace) {
+      _logger.error('Failed to reload tasks after sync.', error, stackTrace);
+    }
   }
 
   void selectGranularity(TodoGranularity granularity) {
@@ -206,14 +272,16 @@ class TodoController extends ChangeNotifier {
   }
 
   Future<void> setOpenAtLogin(bool enabled) async {
+    final autostart = _autostart;
+    if (autostart == null) return;
     _clearError();
     try {
       if (enabled) {
-        await _autostart.enable();
+        await autostart.enable();
       } else {
-        await _autostart.disable();
+        await autostart.disable();
       }
-      _openAtLogin = await _autostart.isEnabled();
+      _openAtLogin = await autostart.isEnabled();
       notifyListeners();
     } catch (error, stackTrace) {
       _fail('Failed to update launch-at-login.', error, stackTrace);
@@ -226,37 +294,48 @@ class TodoController extends ChangeNotifier {
     required String username,
     required String password,
   }) async {
-    _syncUrl = url.trim();
-    _syncRootPath = rootPath.trim();
-    _syncUsername = username;
-    _syncPassword = password;
-    await Future.wait([
-      _settings.write(syncWebDavUrlKey, _syncUrl),
-      _settings.write(syncWebDavRootPathKey, _syncRootPath),
-      _settings.write(syncWebDavUsernameKey, _syncUsername),
-      _settings.write(syncWebDavPasswordKey, _syncPassword),
-    ]);
+    final service = syncService;
+    if (service == null) return;
+    final saved = await service.saveProfile(
+      SyncProfileDraft(
+        id: _activeSyncProfileId ?? 'default',
+        label: 'Default',
+        backend: 'webdav',
+        options: {
+          'base_url': url.trim(),
+          'root_path': rootPath.trim().isEmpty ? 'MiniTodo' : rootPath.trim(),
+          'username': username,
+        },
+        secrets: {if (password.isNotEmpty) 'password': password},
+      ),
+    );
+    if (!saved.isActive) await service.activateProfile(saved.id);
+    _applyProfile(saved);
     _syncMessage = null;
     notifyListeners();
   }
 
-  Future<SyncResult?> sync() async {
-    final engine = syncEngine;
-    if (engine == null) return null;
+  Future<SyncRunReport?> sync() async {
+    final service = syncService;
+    if (service == null) return null;
 
-    _syncStatus = SyncStatus.syncing;
+    _syncStatus = SyncPhase.syncing;
     _syncMessage = null;
     notifyListeners();
-    final result = await engine.sync();
-    if (result.status != SyncStatus.failed) {
+    final result = await service.syncNow();
+    if (result.failure == null) {
       try {
         _todos = await _repository.load();
       } catch (error, stackTrace) {
         _logger.error('Failed to reload tasks after sync.', error, stackTrace);
       }
     }
-    _syncStatus = result.status;
-    _syncMessage = result.message;
+    _syncStatus = result.failure != null
+        ? SyncPhase.failed
+        : result.conflicts > 0
+        ? SyncPhase.conflicted
+        : SyncPhase.succeeded;
+    _syncMessage = result.failure?.message;
     notifyListeners();
     return result;
   }
@@ -277,5 +356,11 @@ class TodoController extends ChangeNotifier {
     _error = message;
     _logger.error(message, error, stackTrace);
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _syncSubscription?.cancel();
+    super.dispose();
   }
 }

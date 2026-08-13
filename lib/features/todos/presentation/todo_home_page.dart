@@ -4,6 +4,7 @@ import 'package:dartloom_runtime/dartloom_runtime.dart';
 import 'package:dartloom_settings/dartloom_settings.dart';
 import 'package:dartloom_storage/dartloom_storage.dart';
 import 'package:dartloom_sync/dartloom_sync.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../app/window_controller.dart';
@@ -12,13 +13,21 @@ import '../application/todo_controller.dart';
 import '../data/todo_repository.dart';
 import '../domain/todo.dart';
 
+bool get _usesDesktopWindowChrome =>
+    !kIsWeb &&
+    const {
+      TargetPlatform.windows,
+      TargetPlatform.macOS,
+      TargetPlatform.linux,
+    }.contains(defaultTargetPlatform);
+
 class TodoHomePage extends StatefulWidget {
   const TodoHomePage({
     this.repository,
     this.settings,
     this.autostart,
     this.logger,
-    this.syncEngine,
+    this.syncService,
     required this.locale,
     required this.onLocaleChanged,
     super.key,
@@ -28,7 +37,7 @@ class TodoHomePage extends StatefulWidget {
   final SettingsStore? settings;
   final AutostartService? autostart;
   final AppLogger? logger;
-  final SyncEngine? syncEngine;
+  final SyncService? syncService;
   final Locale locale;
   final Future<void> Function(Locale locale) onLocaleChanged;
 
@@ -56,11 +65,17 @@ class _TodoHomePageState extends State<TodoHomePage> {
           widget.repository ??
           JsonStoreTodoRepository(Dartloom.get<JsonStore>(name: 'json')),
       settings: widget.settings ?? Dartloom.get<SettingsStore>(),
-      autostart: widget.autostart ?? Dartloom.get<AutostartService>(),
+      autostart:
+          widget.autostart ??
+          (Dartloom.contains<AutostartService>()
+              ? Dartloom.get<AutostartService>()
+              : null),
       logger: widget.logger ?? Dartloom.get<AppLogger>(),
-      syncEngine:
-          widget.syncEngine ??
-          (Dartloom.contains<SyncEngine>() ? Dartloom.get<SyncEngine>() : null),
+      syncService:
+          widget.syncService ??
+          (Dartloom.contains<SyncService>()
+              ? Dartloom.get<SyncService>()
+              : null),
     );
     _controller.initialize().then((_) {
       if (!mounted) return;
@@ -68,7 +83,9 @@ class _TodoHomePageState extends State<TodoHomePage> {
       _syncRootPathController.text = _controller.syncRootPath;
       _syncUsernameController.text = _controller.syncUsername;
       _syncPasswordController.text = _controller.syncPassword;
-      _windowController.setCollapsed(_controller.collapsed);
+      if (_usesDesktopWindowChrome) {
+        _windowController.setCollapsed(_controller.collapsed);
+      }
     });
   }
 
@@ -89,7 +106,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
     animation: _controller,
     builder: (context, _) {
       final strings = AppLocalizations.of(context)!;
-      return Scaffold(body: _buildShell(context, strings));
+      return Scaffold(body: SafeArea(child: _buildShell(context, strings)));
     },
   );
 
@@ -119,16 +136,18 @@ class _TodoHomePageState extends State<TodoHomePage> {
         ),
         child: Row(
           children: [
-            _HeaderButton(
-              icon: _controller.collapsed
-                  ? Icons.keyboard_arrow_down
-                  : Icons.keyboard_arrow_up,
-              tooltip: _controller.collapsed
-                  ? strings.expand
-                  : strings.collapse,
-              onPressed: _toggleCollapsed,
-            ),
-            const SizedBox(width: 8),
+            if (_usesDesktopWindowChrome) ...[
+              _HeaderButton(
+                icon: _controller.collapsed
+                    ? Icons.keyboard_arrow_down
+                    : Icons.keyboard_arrow_up,
+                tooltip: _controller.collapsed
+                    ? strings.expand
+                    : strings.collapse,
+                onPressed: _toggleCollapsed,
+              ),
+              const SizedBox(width: 8),
+            ],
             Expanded(
               child: Listener(
                 behavior: HitTestBehavior.opaque,
@@ -162,13 +181,15 @@ class _TodoHomePageState extends State<TodoHomePage> {
               active: _controller.settingsOpen,
               onPressed: _controller.toggleSettings,
             ),
-            const SizedBox(width: 4),
-            _HeaderButton(
-              icon: Icons.close,
-              tooltip: strings.closeApp,
-              danger: true,
-              onPressed: _hide,
-            ),
+            if (_usesDesktopWindowChrome) ...[
+              const SizedBox(width: 4),
+              _HeaderButton(
+                icon: Icons.close,
+                tooltip: strings.closeApp,
+                danger: true,
+                onPressed: _hide,
+              ),
+            ],
           ],
         ),
       );
@@ -218,14 +239,16 @@ class _TodoHomePageState extends State<TodoHomePage> {
                 ),
               ],
             ),
-            const Divider(height: 16),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(strings.autoStart),
-              subtitle: Text(strings.autoStartHint),
-              value: _controller.openAtLogin,
-              onChanged: _controller.setOpenAtLogin,
-            ),
+            if (_controller.autostartAvailable) ...[
+              const Divider(height: 16),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(strings.autoStart),
+                subtitle: Text(strings.autoStartHint),
+                value: _controller.openAtLogin,
+                onChanged: _controller.setOpenAtLogin,
+              ),
+            ],
             if (_controller.syncAvailable) ...[
               const Divider(height: 20),
               _buildSyncSettings(context, strings),
@@ -296,7 +319,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
               const SizedBox(width: 6),
               Expanded(
                 child: FilledButton.tonalIcon(
-                  onPressed: _controller.syncStatus == SyncStatus.syncing
+                  onPressed: _controller.syncStatus == SyncPhase.syncing
                       ? null
                       : _syncNow,
                   icon: const Icon(Icons.sync, size: 16),
@@ -305,12 +328,12 @@ class _TodoHomePageState extends State<TodoHomePage> {
               ),
             ],
           ),
-          if (_controller.syncStatus != SyncStatus.idle) ...[
+          if (_controller.syncStatus != SyncPhase.idle) ...[
             const SizedBox(height: 6),
             Text(
               _syncStatusLabel(strings),
               style: TextStyle(
-                color: _controller.syncStatus == SyncStatus.failed
+                color: _controller.syncStatus == SyncPhase.failed
                     ? const Color(0xff9e1f33)
                     : const Color(0xff0f766e),
                 fontSize: 12,
@@ -524,14 +547,15 @@ class _TodoHomePageState extends State<TodoHomePage> {
   }
 
   String _syncStatusLabel(AppLocalizations strings) {
-    if (_controller.syncStatus == SyncStatus.syncing) return strings.syncNow;
+    if (_controller.syncStatus == SyncPhase.syncing) return strings.syncNow;
     if (!_controller.syncConfigured) return strings.syncNotConfigured;
     return switch (_controller.syncStatus) {
-      SyncStatus.succeeded => strings.syncSucceeded,
-      SyncStatus.conflicted => strings.syncConflicted,
-      SyncStatus.failed => _controller.syncMessage ?? strings.syncFailed,
-      SyncStatus.idle => '',
-      SyncStatus.syncing => strings.syncNow,
+      SyncPhase.succeeded => strings.syncSucceeded,
+      SyncPhase.conflicted => strings.syncConflicted,
+      SyncPhase.failed ||
+      SyncPhase.offline => _controller.syncMessage ?? strings.syncFailed,
+      SyncPhase.idle => '',
+      SyncPhase.syncing || SyncPhase.scheduled => strings.syncNow,
     };
   }
 

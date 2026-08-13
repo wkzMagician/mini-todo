@@ -7,8 +7,6 @@ import 'package:dartloom_storage/dartloom_storage.dart';
 import 'package:dartloom_storage_json_file/dartloom_storage_json_file.dart';
 import 'package:dartloom_sync/dartloom_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mini_todo/app/sync_configuration.dart';
-import 'package:mini_todo/app/sync_factory.dart';
 import 'package:mini_todo/features/todos/application/todo_controller.dart';
 import 'package:mini_todo/features/todos/data/todo_repository.dart';
 import 'package:mini_todo/features/todos/domain/todo.dart';
@@ -86,19 +84,6 @@ void main() {
     expect(await controller.undoLastCompletion(), isTrue);
     expect(controller.todos.single.title, 'Undo me');
     controller.dispose();
-  });
-
-  test('fails sync clearly when WebDAV is not configured', () async {
-    final engine = ConfiguredWebDavSyncEngine(
-      settings: MemorySettingsStore(),
-      jsonStore: MemoryJsonStore(),
-      defaultRootPath: 'MiniTodo',
-    );
-
-    final result = await engine.sync();
-
-    expect(result.status, SyncStatus.failed);
-    expect(result.message, contains('WebDAV URL'));
   });
 
   test('stores every todo as an independent sync record', () async {
@@ -185,39 +170,71 @@ void main() {
     expect(await store.read('todo-one'), isA<Map>());
   });
 
-  test('syncs once while opening when WebDAV has been configured', () async {
+  test('leaves startup scheduling to Dartloom SyncService', () async {
     final settings = MemorySettingsStore();
-    await settings.write(syncWebDavUrlKey, 'https://dav.example.com/');
-    final engine = _RecordingSyncEngine();
+    final service = _RecordingSyncService();
     final controller = TodoController(
       repository: MemoryTodoRepository(),
       settings: settings,
       autostart: MemoryAutostartService(),
       logger: MemoryLogger(),
-      syncEngine: engine,
+      syncService: service,
     );
 
     await controller.initialize();
 
-    expect(engine.calls, 1);
+    expect(service.calls, 0);
+    await controller.sync();
+    expect(service.calls, 1);
     controller.dispose();
   });
 }
 
-final class _RecordingSyncEngine implements SyncEngine {
+final class _RecordingSyncService implements SyncService {
   int calls = 0;
+  final _profiles = <SyncProfile>[
+    const SyncProfile(
+      id: 'default',
+      label: 'Local',
+      backend: '',
+      isActive: true,
+    ),
+  ];
 
   @override
-  Future<List<SyncConflict>> conflicts() async => const [];
+  SyncSnapshot get snapshot => const SyncSnapshot.initial();
+  @override
+  Stream<SyncSnapshot> get states => const Stream.empty();
 
   @override
-  Future<SyncResult> sync() async {
+  Future<SyncRunReport> syncNow() async {
     calls++;
-    return const SyncResult(status: SyncStatus.succeeded);
+    return const SyncRunReport(trigger: SyncTrigger.manual);
   }
 
   @override
-  Future<SyncStatus> status() async => SyncStatus.succeeded;
+  Future<void> activateProfile(String profileId) async {}
+  @override
+  Future<void> deleteProfile(
+    String profileId, {
+    required bool deleteLocalData,
+  }) async {}
+  @override
+  Future<void> dispose() async {}
+  @override
+  Future<List<SyncConflict>> listConflicts() async => const [];
+  @override
+  Future<List<SyncProfile>> listProfiles() async => _profiles;
+  @override
+  Future<void> resolveConflict(
+    String conflictId,
+    SyncConflictResolution resolution,
+  ) async {}
+  @override
+  Future<SyncProfile> saveProfile(SyncProfileDraft draft) async =>
+      _profiles.first;
+  @override
+  Future<void> start() async {}
 }
 
 final class _SerialOnlyJsonStore implements JsonStore {

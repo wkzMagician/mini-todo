@@ -39,12 +39,16 @@ dependencies:
   dartloom_resident_tray: ^0.2.1
   dartloom_runtime: ^0.1.0
   dartloom_settings: ^0.2.0
+  dartloom_settings_secure_storage: ^0.1.0
   dartloom_settings_shared_preferences: ^0.1.0
   dartloom_storage: ^0.2.0
   dartloom_storage_json_file: ^0.1.0
-  dartloom_sync: ^0.2.0
-  dartloom_sync_etag: ^0.1.0
-  dartloom_sync_webdav: ^0.1.0
+  dartloom_sync: ^0.3.0
+  dartloom_sync_etag: ^0.2.0
+  dartloom_sync_flutter: ^0.1.0
+  dartloom_sync_storage: ^0.1.0
+  dartloom_sync_webdav: ^0.2.0
+  dartloom_sync_workmanager: ^0.1.0
   # dartloom:dependencies:end
   flutter:
     sdk: flutter
@@ -114,83 +118,43 @@ flutter:
 dependency_overrides:
   # dartloom:overrides:start
   dartloom_autostart:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_autostart
+    path: D:/FantasyProjects/dartloom/packages/dartloom_autostart
   dartloom_autostart_launch_at_startup:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_autostart_launch_at_startup
+    path: D:/FantasyProjects/dartloom/packages/dartloom_autostart_launch_at_startup
   dartloom_localization:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_localization
+    path: D:/FantasyProjects/dartloom/packages/dartloom_localization
   dartloom_localization_gen_l10n:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_localization_gen_l10n
+    path: D:/FantasyProjects/dartloom/packages/dartloom_localization_gen_l10n
   dartloom_logging:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_logging
+    path: D:/FantasyProjects/dartloom/packages/dartloom_logging
   dartloom_logging_logger:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_logging_logger
+    path: D:/FantasyProjects/dartloom/packages/dartloom_logging_logger
   dartloom_resident:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_resident
+    path: D:/FantasyProjects/dartloom/packages/dartloom_resident
   dartloom_resident_tray:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_resident_tray
+    path: D:/FantasyProjects/dartloom/packages/dartloom_resident_tray
   dartloom_runtime:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_runtime
+    path: D:/FantasyProjects/dartloom/packages/dartloom_runtime
   dartloom_settings:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_settings
+    path: D:/FantasyProjects/dartloom/packages/dartloom_settings
+  dartloom_settings_secure_storage:
+    path: D:/FantasyProjects/dartloom/packages/dartloom_settings_secure_storage
   dartloom_settings_shared_preferences:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_settings_shared_preferences
+    path: D:/FantasyProjects/dartloom/packages/dartloom_settings_shared_preferences
   dartloom_storage:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_storage
+    path: D:/FantasyProjects/dartloom/packages/dartloom_storage
   dartloom_storage_json_file:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_storage_json_file
+    path: D:/FantasyProjects/dartloom/packages/dartloom_storage_json_file
   dartloom_sync:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_sync
+    path: D:/FantasyProjects/dartloom/packages/dartloom_sync
   dartloom_sync_etag:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_sync_etag
+    path: D:/FantasyProjects/dartloom/packages/dartloom_sync_etag
+  dartloom_sync_flutter:
+    path: D:/FantasyProjects/dartloom/packages/dartloom_sync_flutter
+  dartloom_sync_storage:
+    path: D:/FantasyProjects/dartloom/packages/dartloom_sync_storage
   dartloom_sync_webdav:
-    git:
-      url: https://github.com/wkzMagician/dartloom.git
-      ref: main
-      path: packages/dartloom_sync_webdav
+    path: D:/FantasyProjects/dartloom/packages/dartloom_sync_webdav
+  dartloom_sync_workmanager:
+    path: D:/FantasyProjects/dartloom/packages/dartloom_sync_workmanager
   # dartloom:overrides:end
