@@ -34,7 +34,6 @@
   "loading": "Loading tasks"
   ,"sync": "Sync"
   ,"syncWebDavUrl": "WebDAV URL"
-  ,"syncWebDavRootPath": "Remote folder"
   ,"syncWebDavUsername": "Username"
   ,"syncWebDavPassword": "Password"
   ,"saveSync": "Save sync settings"

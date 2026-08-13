@@ -47,9 +47,8 @@ class JsonStoreTodoRepository implements TodoRepository {
 
   @override
   Future<void> save(List<Todo> todos) async {
-    final existingKeys = (await _store.list())
-        .where(TodoStorageKeys.isTodoKey)
-        .toSet();
+    final allKeys = await _store.list();
+    final existingKeys = allKeys.where(TodoStorageKeys.isTodoKey).toSet();
     final nextKeys = <String>{};
 
     for (final entry in todos.indexed) {
@@ -58,7 +57,9 @@ class JsonStoreTodoRepository implements TodoRepository {
     for (final key in existingKeys) {
       if (!nextKeys.contains(key)) await _store.delete(key);
     }
-    await _store.delete(TodoStorageKeys.legacyTodosKey);
+    if (allKeys.contains(TodoStorageKeys.legacyTodosKey)) {
+      await _store.delete(TodoStorageKeys.legacyTodosKey);
+    }
   }
 
   Future<List<Todo>> _migrateLegacyTodos() async {

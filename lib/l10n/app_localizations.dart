@@ -278,12 +278,6 @@ abstract class AppLocalizations {
   /// **'WebDAV URL'**
   String get syncWebDavUrl;
 
-  /// No description provided for @syncWebDavRootPath.
-  ///
-  /// In en, this message translates to:
-  /// **'Remote folder'**
-  String get syncWebDavRootPath;
-
   /// No description provided for @syncWebDavUsername.
   ///
   /// In en, this message translates to:

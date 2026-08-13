@@ -34,18 +34,23 @@ Future<void> initializeDartloom({
         DartloomBinding<SettingsStore>(SharedPreferencesSettingsStore()),
     'secure_storage': (_) =>
         const DartloomBinding<SettingsStore>(SecureSettingsStore()),
-    'json_file': (context) async {
-      final value = await JsonFileStore.open(
-        path: context.options['path'] as String? ?? 'dartloom/data.json',
+    'json_directory': (context) async {
+      final value = await JsonDirectoryStore.open(
+        path: context.options['path'] as String? ?? 'Dartloom',
+        metadataPath: context.options['metadata_path'] as String?,
+        hierarchical: context.options['hierarchical'] as bool? ?? false,
+        legacyJsonPath: context.options['legacy_json_path'] as String?,
+        legacyKeyPrefix: context.options['legacy_key_prefix'] as String? ?? '',
+        allowedKeys: ((context.options['allowed_keys'] as List?) ?? const [])
+            .cast<String>()
+            .toSet(),
+        allowedPrefixes:
+            ((context.options['allowed_prefixes'] as List?) ?? const [])
+                .cast<String>(),
+        seed: ((context.options['seed'] as Map?) ?? const {})
+            .cast<String, Object?>(),
       );
-      final syncScope = context.options['sync_scope'] as String?;
-      if (syncScope == null) return DartloomBinding<JsonStore>(value);
-      final scoped = await ProfileScopedJsonStore.open(
-        value,
-        context.get<SyncProfileScope>(name: syncScope),
-        attachExistingData: context.options['sync_attach_existing'] != false,
-      );
-      return DartloomBinding<JsonStore>(scoped, dispose: scoped.close);
+      return DartloomBinding<JsonStore>(value, dispose: value.close);
     },
     'logger': (_) => DartloomBinding<AppLogger>(LoggerAppLogger()),
     'launch_at_startup': (context) => DartloomBinding<AutostartService>(
@@ -87,23 +92,13 @@ Future<void> initializeDartloom({
       return DartloomBinding<SyncProfileScope>(value, dispose: value.dispose);
     },
     'etag': (context) async {
-      final localStores = <String, ProfileScopedJsonStore>{};
-      for (final reference
-          in (context.options['stores'] as List).cast<String>()) {
-        final name = reference.substring('storage.'.length);
-        if (name == 'json') {
-          final store = context.get<JsonStore>(name: name);
-          if (store is! ProfileScopedJsonStore) {
-            throw DartloomException(
-              'sync store storage.$name is not profile scoped.',
-            );
-          }
-          localStores[name] = store;
-        }
-      }
-      if (localStores.isEmpty) {
-        throw const DartloomException(
-          'etag sync currently requires storage.json.',
+      final replicaName = (context.options['replica'] as String).substring(
+        'storage.'.length,
+      );
+      final localStore = context.get<JsonStore>(name: replicaName);
+      if (localStore is! ReplicaJsonStore) {
+        throw DartloomException(
+          'sync replica storage.$replicaName must be directory backed.',
         );
       }
       final scope = context.get<SyncProfileScope>(name: context.name);
@@ -113,9 +108,8 @@ Future<void> initializeDartloom({
         secretsStore: context.get<SettingsStore>(name: 'sync_secrets'),
         scope: scope,
       );
-      final firstStore = localStores.values.first;
-      final state = JsonReconciliationStateRepository(
-        firstStore.raw,
+      final state = SettingsReconciliationStateRepository(
+        context.get<SettingsStore>(),
         instanceName: context.name,
       );
       final backend = WebDavBackendFactory(
@@ -131,6 +125,15 @@ Future<void> initializeDartloom({
             context.options['backend_max_parallel_requests'] as int,
         createMissingCollections:
             context.options['backend_create_missing_collections'] as bool,
+        hierarchical: context.options['backend_hierarchical'] as bool? ?? false,
+        probeDepthInfinity:
+            context.options['backend_probe_depth_infinity'] as bool? ?? false,
+        legacyCollection:
+            context.options['backend_legacy_collection'] as String?,
+        legacyKeyPrefix:
+            context.options['backend_legacy_key_prefix'] as String? ?? '',
+        listingLimitHint:
+            context.options['backend_listing_limit_hint'] as int? ?? 750,
       );
       SyncMergePolicy? merge;
       final mergeFactory = context.options['merge_factory'] as String?;
@@ -159,7 +162,7 @@ Future<void> initializeDartloom({
           _dartloomCurrentPlatform,
         ),
         profiles: profiles,
-        localFactory: JsonLocalReplicaFactory(localStores),
+        localFactory: JsonLocalReplicaFactory(localStore),
         stateRepository: state,
         reconciler: const EtagReconciler(),
         backends: {'webdav': backend},
@@ -247,13 +250,23 @@ Future<void> initializeDartloom({
       DartloomRegistration<JsonStore>(
         capability: 'storage',
         name: "json",
-        factory: "json_file",
+        factory: "json_directory",
         options: <String, Object?>{
-          "path": "mini_todo/data.json",
-          "sync_scope": "default",
-          "sync_attach_existing": true,
+          "path": "MiniTodo",
+          "metadata_path": "mini_todo/sync-metadata/MiniTodo",
+          "hierarchical": false,
+          "legacy_json_path": "mini_todo/data.json",
+          "legacy_key_prefix": "__dartloom_profiles/default/",
+          "allowed_keys": [".mini-todo.json"],
+          "allowed_prefixes": ["todo-"],
+          "seed": <String, Object?>{
+            ".mini-todo.json": <String, Object?>{
+              "application": "mini-todo",
+              "layout": 1,
+              "format": "json-files",
+            },
+          },
         },
-        dependsOn: const [DartloomReference('sync_profile', 'default')],
       ),
     if ((!syncWorker || false) &&
         _dartloomSupportsCurrentPlatform(const {
@@ -292,7 +305,7 @@ Future<void> initializeDartloom({
         name: "default",
         factory: "etag",
         options: <String, Object?>{
-          "stores": ["storage.json"],
+          "replica": "storage.json",
           "policy": <String, Object?>{
             "mode": "automatic",
             "triggers": <String, Object?>{
@@ -368,6 +381,11 @@ Future<void> initializeDartloom({
           "backend_request_timeout": "30s",
           "backend_max_parallel_requests": 4,
           "backend_create_missing_collections": true,
+          "backend_hierarchical": false,
+          "backend_probe_depth_infinity": false,
+          "backend_legacy_collection": "json",
+          "backend_legacy_key_prefix": "todo-",
+          "backend_listing_limit_hint": 750,
         },
         dependsOn: const [
           DartloomReference('storage', 'json'),

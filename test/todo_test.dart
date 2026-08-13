@@ -184,6 +184,12 @@ void main() {
     await controller.initialize();
 
     expect(service.calls, 0);
+    await controller.saveSyncConfiguration(
+      url: 'https://example.test/dav/',
+      username: 'user',
+      password: 'secret',
+    );
+    expect(service.lastDraft?.options, isNot(contains('root_path')));
     await controller.sync();
     expect(service.calls, 1);
     controller.dispose();
@@ -192,6 +198,7 @@ void main() {
 
 final class _RecordingSyncService implements SyncService {
   int calls = 0;
+  SyncProfileDraft? lastDraft;
   final _profiles = <SyncProfile>[
     const SyncProfile(
       id: 'default',
@@ -231,8 +238,11 @@ final class _RecordingSyncService implements SyncService {
     SyncConflictResolution resolution,
   ) async {}
   @override
-  Future<SyncProfile> saveProfile(SyncProfileDraft draft) async =>
-      _profiles.first;
+  Future<SyncProfile> saveProfile(SyncProfileDraft draft) async {
+    lastDraft = draft;
+    return _profiles.first;
+  }
+
   @override
   Future<void> start() async {}
 }

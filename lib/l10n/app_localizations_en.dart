@@ -108,9 +108,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncWebDavUrl => 'WebDAV URL';
 
   @override
-  String get syncWebDavRootPath => 'Remote folder';
-
-  @override
   String get syncWebDavUsername => 'Username';
 
   @override
