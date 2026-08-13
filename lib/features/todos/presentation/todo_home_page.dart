@@ -27,7 +27,7 @@ class TodoHomePage extends StatefulWidget {
     this.settings,
     this.autostart,
     this.logger,
-    this.syncEngine,
+    this.syncService,
     required this.locale,
     required this.onLocaleChanged,
     super.key,
@@ -37,7 +37,7 @@ class TodoHomePage extends StatefulWidget {
   final SettingsStore? settings;
   final AutostartService? autostart;
   final AppLogger? logger;
-  final SyncEngine? syncEngine;
+  final SyncService? syncService;
   final Locale locale;
   final Future<void> Function(Locale locale) onLocaleChanged;
 
@@ -71,9 +71,11 @@ class _TodoHomePageState extends State<TodoHomePage> {
               ? Dartloom.get<AutostartService>()
               : null),
       logger: widget.logger ?? Dartloom.get<AppLogger>(),
-      syncEngine:
-          widget.syncEngine ??
-          (Dartloom.contains<SyncEngine>() ? Dartloom.get<SyncEngine>() : null),
+      syncService:
+          widget.syncService ??
+          (Dartloom.contains<SyncService>()
+              ? Dartloom.get<SyncService>()
+              : null),
     );
     _controller.initialize().then((_) {
       if (!mounted) return;
@@ -317,7 +319,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
               const SizedBox(width: 6),
               Expanded(
                 child: FilledButton.tonalIcon(
-                  onPressed: _controller.syncStatus == SyncStatus.syncing
+                  onPressed: _controller.syncStatus == SyncPhase.syncing
                       ? null
                       : _syncNow,
                   icon: const Icon(Icons.sync, size: 16),
@@ -326,12 +328,12 @@ class _TodoHomePageState extends State<TodoHomePage> {
               ),
             ],
           ),
-          if (_controller.syncStatus != SyncStatus.idle) ...[
+          if (_controller.syncStatus != SyncPhase.idle) ...[
             const SizedBox(height: 6),
             Text(
               _syncStatusLabel(strings),
               style: TextStyle(
-                color: _controller.syncStatus == SyncStatus.failed
+                color: _controller.syncStatus == SyncPhase.failed
                     ? const Color(0xff9e1f33)
                     : const Color(0xff0f766e),
                 fontSize: 12,
@@ -545,14 +547,15 @@ class _TodoHomePageState extends State<TodoHomePage> {
   }
 
   String _syncStatusLabel(AppLocalizations strings) {
-    if (_controller.syncStatus == SyncStatus.syncing) return strings.syncNow;
+    if (_controller.syncStatus == SyncPhase.syncing) return strings.syncNow;
     if (!_controller.syncConfigured) return strings.syncNotConfigured;
     return switch (_controller.syncStatus) {
-      SyncStatus.succeeded => strings.syncSucceeded,
-      SyncStatus.conflicted => strings.syncConflicted,
-      SyncStatus.failed => _controller.syncMessage ?? strings.syncFailed,
-      SyncStatus.idle => '',
-      SyncStatus.syncing => strings.syncNow,
+      SyncPhase.succeeded => strings.syncSucceeded,
+      SyncPhase.conflicted => strings.syncConflicted,
+      SyncPhase.failed ||
+      SyncPhase.offline => _controller.syncMessage ?? strings.syncFailed,
+      SyncPhase.idle => '',
+      SyncPhase.syncing || SyncPhase.scheduled => strings.syncNow,
     };
   }
 

@@ -1,4 +1,4 @@
-schema_version: 2
+schema_version: 3
 
 app:
   name: "mini_todo"
@@ -19,6 +19,8 @@ capabilities:
     instances:
       default:
         implementation: "shared_preferences"
+      sync_secrets:
+        implementation: "secure_storage"
   storage:
     instances:
       json:
@@ -40,17 +42,80 @@ capabilities:
   sync:
     instances:
       default:
-        implementation: "etag_object"
-        factory: "app_sync"
-        depends_on:
-          - "settings.default"
+        implementation: "etag"
         stores:
           - "storage.json"
         backend:
           implementation: "webdav"
           options:
-            base_url: "https://example.invalid"
             root_path: "MiniTodo"
+            connect_timeout: "10s"
+            request_timeout: "30s"
+            max_parallel_requests: 4
+            create_missing_collections: true
+        policy:
+          mode: "automatic"
+          triggers:
+            startup: true
+            resume: true
+            connectivity_restored: true
+            local_write:
+              enabled: true
+              debounce: "2s"
+              max_delay: "10s"
+          discovery:
+            remote_changes: "auto"
+            poll_interval: "60s"
+            safety_reconcile_interval: "15m"
+          execution:
+            timeout: "2m"
+            busy_behavior: "coalesce_then_rerun"
+            max_parallel_transfers: 4
+            max_object_size: "20mb"
+          retry:
+            strategy: "exponential"
+            initial_delay: "5s"
+            fixed_delay: "30s"
+            sequence:
+              - "5s"
+              - "30s"
+              - "2m"
+              - "10m"
+            multiplier: 3
+            max_delay: "10m"
+            jitter: "20%"
+            max_attempts: 0
+          conflicts:
+            strategy: "preserve"
+            delete_vs_update: "conflict"
+          state:
+            base_payload: "always"
+            tombstone_retention: "30d"
+          profiles:
+            sync_on_activate: true
+            existing_data: "attach_to_default"
+          platforms:
+            android:
+              discovery:
+                poll_interval: "2m"
+              background:
+                enabled: true
+                enqueue_on_pending: true
+                periodic_interval: "15m"
+                flex_interval: "5m"
+                network: "connected"
+                requires_battery_not_low: true
+                requires_charging: false
+                timeout: "2m"
+            windows:
+              discovery:
+                poll_interval: "30s"
+            macos:
+              discovery:
+                poll_interval: "30s"
+            linux:
+              discovery:
+                poll_interval: "30s"
   localization:
     instances:
       default:
