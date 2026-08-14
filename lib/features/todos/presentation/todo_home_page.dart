@@ -46,6 +46,8 @@ class TodoHomePage extends StatefulWidget {
 }
 
 class _TodoHomePageState extends State<TodoHomePage> {
+  static const _passwordMask = '••••••••';
+
   late final TodoController _controller;
   final _windowController = DesktopWindowController();
   final _newTitleController = TextEditingController();
@@ -55,6 +57,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
   final _syncPasswordController = TextEditingController();
   TodoGranularity _newGranularity = TodoGranularity.day;
   String? _editingTodoId;
+  bool _syncPasswordUnchanged = false;
 
   @override
   void initState() {
@@ -80,7 +83,10 @@ class _TodoHomePageState extends State<TodoHomePage> {
       if (!mounted) return;
       _syncUrlController.text = _controller.syncUrl;
       _syncUsernameController.text = _controller.syncUsername;
-      _syncPasswordController.text = _controller.syncPassword;
+      if (_controller.syncConfigured) {
+        _syncPasswordUnchanged = true;
+        _syncPasswordController.text = _passwordMask;
+      }
       if (_usesDesktopWindowChrome) {
         _windowController.setCollapsed(_controller.collapsed);
       }
@@ -305,8 +311,18 @@ class _TodoHomePageState extends State<TodoHomePage> {
           TextField(
             controller: _syncPasswordController,
             obscureText: true,
+            onTap: () {
+              if (!_syncPasswordUnchanged) return;
+              setState(() {
+                _syncPasswordUnchanged = false;
+                _syncPasswordController.clear();
+              });
+            },
             decoration: InputDecoration(
               labelText: strings.syncWebDavPassword,
+              helperText: _syncPasswordUnchanged
+                  ? strings.syncStoredPasswordHint
+                  : null,
               isDense: true,
             ),
           ),
@@ -537,11 +553,20 @@ class _TodoHomePageState extends State<TodoHomePage> {
     }
   }
 
-  Future<void> _saveSyncSettings() => _controller.saveSyncConfiguration(
-    url: _syncUrlController.text,
-    username: _syncUsernameController.text,
-    password: _syncPasswordController.text,
-  );
+  Future<void> _saveSyncSettings() async {
+    final password = _syncPasswordUnchanged ? '' : _syncPasswordController.text;
+    await _controller.saveSyncConfiguration(
+      url: _syncUrlController.text,
+      username: _syncUsernameController.text,
+      password: password,
+    );
+    if (password.isNotEmpty && mounted) {
+      setState(() {
+        _syncPasswordUnchanged = true;
+        _syncPasswordController.text = _passwordMask;
+      });
+    }
+  }
 
   Future<void> _syncNow() async {
     await _saveSyncSettings();

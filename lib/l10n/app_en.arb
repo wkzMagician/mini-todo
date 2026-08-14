@@ -36,6 +36,7 @@
   ,"syncWebDavUrl": "WebDAV URL"
   ,"syncWebDavUsername": "Username"
   ,"syncWebDavPassword": "Password"
+  ,"syncStoredPasswordHint": "Saved securely. Select the field to replace it."
   ,"saveSync": "Save sync settings"
   ,"syncNow": "Sync now"
   ,"syncNotConfigured": "Configure WebDAV first"

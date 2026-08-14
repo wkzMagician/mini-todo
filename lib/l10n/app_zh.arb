@@ -36,6 +36,7 @@
   ,"syncWebDavUrl": "WebDAV 地址"
   ,"syncWebDavUsername": "用户名"
   ,"syncWebDavPassword": "密码"
+  ,"syncStoredPasswordHint": "密码已安全保存；点击输入框可替换密码。"
   ,"saveSync": "保存同步设置"
   ,"syncNow": "立即同步"
   ,"syncNotConfigured": "请先配置 WebDAV"
