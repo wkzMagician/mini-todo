@@ -213,19 +213,61 @@ void main() {
     expect(service.calls, 1);
     controller.dispose();
   });
+
+  test(
+    'migrates legacy plaintext credentials when a profile already exists',
+    () async {
+      final settings = MemorySettingsStore();
+      await settings.write('sync.webdav.url', 'https://example.test/dav/');
+      await settings.write('sync.webdav.username', 'user');
+      await settings.write('sync.webdav.password', 'legacy-secret');
+      final service = _RecordingSyncService(
+        profiles: [
+          const SyncProfile(
+            id: 'default',
+            label: 'Default',
+            backend: 'webdav',
+            options: {
+              'base_url': 'https://example.test/dav/',
+              'username': 'user',
+            },
+            isActive: true,
+          ),
+        ],
+      );
+      final controller = TodoController(
+        repository: MemoryTodoRepository(),
+        settings: settings,
+        logger: MemoryLogger(),
+        syncService: service,
+      );
+
+      await controller.initialize();
+
+      expect(service.lastDraft?.secrets, {'password': 'legacy-secret'});
+      expect(await settings.read('sync.webdav.password'), isNull);
+      expect(await settings.read('sync.webdav.url'), isNull);
+      controller.dispose();
+    },
+  );
 }
 
 final class _RecordingSyncService implements SyncService {
+  _RecordingSyncService({List<SyncProfile>? profiles})
+    : _profiles =
+          profiles ??
+          [
+            const SyncProfile(
+              id: 'default',
+              label: 'Local',
+              backend: '',
+              isActive: true,
+            ),
+          ];
+
   int calls = 0;
   SyncProfileDraft? lastDraft;
-  final _profiles = <SyncProfile>[
-    const SyncProfile(
-      id: 'default',
-      label: 'Local',
-      backend: '',
-      isActive: true,
-    ),
-  ];
+  final List<SyncProfile> _profiles;
 
   @override
   SyncSnapshot get snapshot => const SyncSnapshot.initial();

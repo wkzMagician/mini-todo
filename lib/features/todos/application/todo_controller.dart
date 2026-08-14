@@ -99,9 +99,13 @@ class TodoController extends ChangeNotifier {
         .where((profile) => profile.isActive)
         .firstOrNull;
     final legacyUrl = await _readSetting(syncWebDavUrlKey);
+    final legacyUsername = await _readSetting(syncWebDavUsernameKey);
+    final legacyPassword = await _readSetting(syncWebDavPasswordKey);
+    final hasLegacyConfig =
+        legacyUrl.isNotEmpty ||
+        legacyUsername.isNotEmpty ||
+        legacyPassword.isNotEmpty;
     if ((active == null || active.backend.isEmpty) && legacyUrl.isNotEmpty) {
-      final legacyUsername = await _readSetting(syncWebDavUsernameKey);
-      final legacyPassword = await _readSetting(syncWebDavPasswordKey);
       active = await service.saveProfile(
         SyncProfileDraft(
           id: active?.id ?? 'default',
@@ -112,6 +116,24 @@ class TodoController extends ChangeNotifier {
         ),
       );
       await service.activateProfile(active.id);
+    } else if (active?.backend == 'webdav' && hasLegacyConfig) {
+      // Older builds kept WebDAV credentials in shared preferences. Move the
+      // legacy password into the secure profile even when a profile already
+      // exists, then remove every legacy key so it cannot remain plaintext.
+      final options = <String, Object?>{...active!.options};
+      if (legacyUrl.isNotEmpty) options['base_url'] = legacyUrl;
+      if (legacyUsername.isNotEmpty) options['username'] = legacyUsername;
+      active = await service.saveProfile(
+        SyncProfileDraft(
+          id: active.id,
+          label: active.label,
+          backend: active.backend,
+          options: options,
+          secrets: {if (legacyPassword.isNotEmpty) 'password': legacyPassword},
+        ),
+      );
+    }
+    if (hasLegacyConfig) {
       await Future.wait([
         _settings.remove(syncWebDavUrlKey),
         _settings.remove('sync.webdav.root_path'),
