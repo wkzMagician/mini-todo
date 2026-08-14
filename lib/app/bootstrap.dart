@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import '../capabilities/capabilities.dart';
@@ -8,6 +10,11 @@ import 'resident_bootstrap.dart';
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDartloom(customFactories: dartloomApplicationFactories);
-  await configureResidentMenu();
   runApp(const DartloomApp());
+  unawaited(
+    configureResidentMenu().catchError((Object error, StackTrace stackTrace) {
+      debugPrint('Failed to configure the resident menu: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }),
+  );
 }
