@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:dartloom_storage/dartloom_storage.dart';
 import 'package:dartloom_storage_json_file/dartloom_storage_json_file.dart';
 import 'package:dartloom_sync/dartloom_sync.dart';
 import 'package:dartloom_sync_etag/dartloom_sync_etag.dart';
@@ -10,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
-    'complete remote restores a deleted local replica directory without remote mutations',
+    'root loss and external changes recover without remote mutations',
     () async {
       final sandbox = await Directory.systemTemp.createTemp(
         'mini_todo_remote_restore_',
@@ -30,6 +31,7 @@ void main() {
         await store.write('todo-1', {'title': 'one'});
         await store.write('todo-2', {'title': 'two'});
         await const EtagReconciler().reconcile(_request(local, remote, state));
+        expect(await store.explicitIntents(), isEmpty);
         final remoteBefore = remote.snapshot();
         final writesBefore = remote.writeCount;
         final deletesBefore = remote.deleteCount;
@@ -50,6 +52,33 @@ void main() {
         expect(report.conflicts, 0);
         expect(await store.read('todo-1'), {'title': 'one'});
         expect(await store.read('todo-2'), {'title': 'two'});
+        expect(remote.snapshot(), remoteBefore);
+        expect(remote.writeCount, writesBefore);
+        expect(remote.deleteCount, deletesBefore);
+
+        await File('${business.path}${Platform.pathSeparator}todo-1').delete();
+        await File(
+          '${business.path}${Platform.pathSeparator}todo-2',
+        ).writeAsString(jsonEncode({'title': 'external edit'}));
+        await File(
+          '${business.path}${Platform.pathSeparator}todo-external',
+        ).writeAsString(jsonEncode({'title': 'external new'}));
+
+        final recovery = await const EtagReconciler().reconcile(
+          _request(local, remote, state),
+        );
+
+        expect(recovery.downloaded, 2);
+        expect(await store.read('todo-1'), {'title': 'one'});
+        expect(await store.read('todo-2'), {'title': 'two'});
+        expect(await store.read('todo-external'), {'title': 'external new'});
+        expect(await store.explicitIntents(), isEmpty);
+        expect(
+          (await store.scan())
+              .singleWhere((item) => item.key == 'todo-external')
+              .observation,
+          ReplicaObservation.unregisteredLocalObject,
+        );
         expect(remote.snapshot(), remoteBefore);
         expect(remote.writeCount, writesBefore);
         expect(remote.deleteCount, deletesBefore);
