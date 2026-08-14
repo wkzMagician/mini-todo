@@ -290,6 +290,12 @@ abstract class AppLocalizations {
   /// **'Password'**
   String get syncWebDavPassword;
 
+  /// No description provided for @syncStoredPasswordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved securely. Select the field to replace it.'**
+  String get syncStoredPasswordHint;
+
   /// No description provided for @saveSync.
   ///
   /// In en, this message translates to:

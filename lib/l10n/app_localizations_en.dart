@@ -114,6 +114,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncWebDavPassword => 'Password';
 
   @override
+  String get syncStoredPasswordHint =>
+      'Saved securely. Select the field to replace it.';
+
+  @override
   String get saveSync => 'Save sync settings';
 
   @override

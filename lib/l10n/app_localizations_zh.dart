@@ -113,6 +113,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get syncWebDavPassword => '密码';
 
   @override
+  String get syncStoredPasswordHint => '密码已安全保存；点击输入框可替换密码。';
+
+  @override
   String get saveSync => '保存同步设置';
 
   @override
