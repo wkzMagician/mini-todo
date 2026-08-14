@@ -62,7 +62,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
     _controller = TodoController(
       repository:
           widget.repository ??
-          JsonStoreTodoRepository(Dartloom.get<JsonStore>(name: 'json')),
+          ReplicaTodoRepository(Dartloom.get<ReplicaStore>(name: 'json')),
       settings: widget.settings ?? Dartloom.get<SettingsStore>(),
       autostart:
           widget.autostart ??

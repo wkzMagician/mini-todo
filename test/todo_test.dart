@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dartloom_autostart/dartloom_autostart.dart';
 import 'package:dartloom_logging/dartloom_logging.dart';
@@ -87,8 +89,8 @@ void main() {
   });
 
   test('stores every todo as an independent sync record', () async {
-    final store = MemoryJsonStore();
-    final repository = JsonStoreTodoRepository(store);
+    final store = MemoryReplicaStore();
+    final repository = ReplicaTodoRepository(store);
     final first = Todo(
       id: 'one',
       title: 'First task',
@@ -103,17 +105,20 @@ void main() {
     );
 
     await repository.save([first, second]);
-    expect(await store.list(), containsAll(['todo-one', 'todo-two']));
-    expect(await store.read(TodoStorageKeys.legacyTodosKey), isNull);
+    expect(
+      (await store.scan()).map((item) => item.key),
+      containsAll(['todo-one', 'todo-two']),
+    );
+    expect(await store.readBytes(TodoStorageKeys.legacyTodosKey), isNull);
 
     await repository.save([second]);
-    expect(await store.read('todo-one'), isNull);
+    expect(await store.readBytes('todo-one'), isNull);
     expect((await repository.load()).single, second);
   });
 
-  test('serializes mutations for file-backed JSON stores', () async {
-    final store = _SerialOnlyJsonStore();
-    final repository = JsonStoreTodoRepository(store);
+  test('serializes mutations for replica stores', () async {
+    final store = _SerialOnlyReplicaStore();
+    final repository = ReplicaTodoRepository(store);
     final todos = [
       Todo(
         id: 'one',
@@ -135,11 +140,18 @@ void main() {
     expect(store.maximumConcurrentMutations, 1);
   });
 
-  test('persists one new task in the real JSON file store', () async {
-    final directory = await Directory.systemTemp.createTemp('mini_todo_save');
-    addTearDown(() => directory.delete(recursive: true));
-    final file = File('${directory.path}${Platform.pathSeparator}data.json');
-    final repository = JsonStoreTodoRepository(JsonFileStore(file));
+  test('persists one new task in the real replica file store', () async {
+    final sandbox = await Directory.systemTemp.createTemp('mini_todo_save');
+    addTearDown(() => sandbox.delete(recursive: true));
+    final business = Directory(
+      '${sandbox.path}${Platform.pathSeparator}MiniTodo',
+    );
+    final metadata = Directory(
+      '${sandbox.path}${Platform.pathSeparator}metadata',
+    );
+    final repository = ReplicaTodoRepository(
+      await _openStore(business, metadata),
+    );
     final todo = Todo(
       id: 'one',
       title: 'Only task',
@@ -149,25 +161,32 @@ void main() {
 
     await repository.save([todo]);
 
-    expect(await JsonStoreTodoRepository(JsonFileStore(file)).load(), [todo]);
-    expect(File('${file.path}.tmp').existsSync(), isFalse);
+    final reopened = await _openStore(business, metadata);
+    expect(await ReplicaTodoRepository(reopened).load(), [todo]);
+    expect(
+      business.listSync().where((entity) => entity.path.endsWith('.tmp')),
+      isEmpty,
+    );
   });
 
   test('migrates the old combined todo list to independent records', () async {
-    final store = MemoryJsonStore();
+    final store = MemoryReplicaStore();
     final todo = Todo(
       id: 'one',
       title: 'Migrated task',
       granularity: TodoGranularity.day,
       createdAt: now,
     );
-    await store.write(TodoStorageKeys.legacyTodosKey, [todo.toJson()]);
+    await store.writeBytes(
+      TodoStorageKeys.legacyTodosKey,
+      Uint8List.fromList(utf8.encode(jsonEncode([todo.toJson()]))),
+    );
 
-    final loaded = await JsonStoreTodoRepository(store).load();
+    final loaded = await ReplicaTodoRepository(store).load();
 
     expect(loaded, [todo]);
-    expect(await store.read(TodoStorageKeys.legacyTodosKey), isNull);
-    expect(await store.read('todo-one'), isA<Map>());
+    expect(await store.readBytes(TodoStorageKeys.legacyTodosKey), isNull);
+    expect(await store.readBytes('todo-one'), isNotNull);
   });
 
   test('leaves startup scheduling to Dartloom SyncService', () async {
@@ -247,24 +266,64 @@ final class _RecordingSyncService implements SyncService {
   Future<void> start() async {}
 }
 
-final class _SerialOnlyJsonStore implements JsonStore {
-  final _values = <String, Object?>{};
+Future<JsonDirectoryStore> _openStore(Directory business, Directory metadata) =>
+    JsonDirectoryStore.openAt(
+      directory: business.absolute,
+      metadataDirectory: metadata.absolute,
+      allowedKeys: const {'.mini-todo.json'},
+      allowedPrefixes: const ['todo-'],
+    );
+
+final class _SerialOnlyReplicaStore implements ReplicaStore {
+  final _values = <String, Uint8List>{};
   var _activeMutations = 0;
   var maximumConcurrentMutations = 0;
 
   @override
-  Future<void> delete(String key) => _mutate(() => _values.remove(key));
+  String get identity => 'serial-only';
 
   @override
-  Future<List<String>> list({String prefix = ''}) async =>
-      (_values.keys.where((key) => key.startsWith(prefix)).toList()..sort());
+  Stream<StoreChange> get changes => const Stream.empty();
 
   @override
-  Future<Object?> read(String key) async => _values[key];
+  bool acceptsKey(String key) => true;
 
   @override
-  Future<void> write(String key, Object? value) =>
-      _mutate(() => _values[key] = value);
+  Future<void> delete(
+    String key, {
+    StoreMutationOrigin origin = StoreMutationOrigin.application,
+  }) => _mutate(() => _values.remove(key));
+
+  @override
+  Future<List<ReplicaObjectMetadata>> scan() async => [
+    for (final entry in _values.entries)
+      ReplicaObjectMetadata(key: entry.key, size: entry.value.length),
+  ];
+
+  @override
+  Future<Uint8List?> readBytes(String key) async => _values[key];
+
+  @override
+  Future<void> writeBytes(
+    String key,
+    Uint8List data, {
+    StoreMutationOrigin origin = StoreMutationOrigin.application,
+  }) => _mutate(() => _values[key] = data);
+
+  @override
+  Future<List<StoreIntent>> explicitIntents() async => const [];
+
+  @override
+  Future<void> forgetExplicitIntent(String operationId) async {}
+
+  @override
+  Future<Set<String>> explicitDeletedKeys() async => const {};
+
+  @override
+  Future<void> forgetExplicitDelete(String key) async {}
+
+  @override
+  Future<void> close() async {}
 
   Future<void> _mutate(void Function() mutation) async {
     _activeMutations++;
@@ -273,7 +332,7 @@ final class _SerialOnlyJsonStore implements JsonStore {
         : maximumConcurrentMutations;
     if (_activeMutations > 1) {
       _activeMutations--;
-      throw StateError('Concurrent JSON mutation');
+      throw StateError('Concurrent replica mutation');
     }
     try {
       await Future<void>.delayed(Duration.zero);

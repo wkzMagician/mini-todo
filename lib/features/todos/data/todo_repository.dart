@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dartloom_storage/dartloom_storage.dart';
 
 import '../domain/todo.dart';
@@ -28,15 +31,16 @@ class MemoryTodoRepository implements TodoRepository {
   Future<void> save(List<Todo> todos) async => _todos = List<Todo>.from(todos);
 }
 
-class JsonStoreTodoRepository implements TodoRepository {
-  JsonStoreTodoRepository(this._store);
+class ReplicaTodoRepository implements TodoRepository {
+  ReplicaTodoRepository(this._store);
 
-  final JsonStore _store;
+  final ReplicaStore _store;
 
   @override
   Future<List<Todo>> load() async {
-    final keys = (await _store.list()).where(TodoStorageKeys.isTodoKey).toList()
-      ..sort();
+    final keys =
+        (await _existingKeys()).where(TodoStorageKeys.isTodoKey).toList()
+          ..sort();
     if (keys.isEmpty) return _migrateLegacyTodos();
 
     final storedTodos = (await Future.wait(
@@ -47,7 +51,7 @@ class JsonStoreTodoRepository implements TodoRepository {
 
   @override
   Future<void> save(List<Todo> todos) async {
-    final allKeys = await _store.list();
+    final allKeys = await _existingKeys();
     final existingKeys = allKeys.where(TodoStorageKeys.isTodoKey).toSet();
     final nextKeys = <String>{};
 
@@ -55,17 +59,34 @@ class JsonStoreTodoRepository implements TodoRepository {
       await _writeTodo(entry.$1, entry.$2, nextKeys);
     }
     for (final key in existingKeys) {
-      if (!nextKeys.contains(key)) await _store.delete(key);
+      if (!nextKeys.contains(key)) {
+        await _store.delete(key, origin: StoreMutationOrigin.application);
+      }
     }
     if (allKeys.contains(TodoStorageKeys.legacyTodosKey)) {
-      await _store.delete(TodoStorageKeys.legacyTodosKey);
+      await _store.delete(
+        TodoStorageKeys.legacyTodosKey,
+        origin: StoreMutationOrigin.application,
+      );
     }
   }
 
+  Future<List<String>> _existingKeys() async => (await _store.scan())
+      .where((item) => item.exists)
+      .map((item) => item.key)
+      .toList();
+
   Future<List<Todo>> _migrateLegacyTodos() async {
-    final value = await _store.read(TodoStorageKeys.legacyTodosKey);
-    if (value is! List) return const [];
-    final todos = value
+    final bytes = await _store.readBytes(TodoStorageKeys.legacyTodosKey);
+    if (bytes == null) return const [];
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(utf8.decode(bytes));
+    } on FormatException {
+      return const [];
+    }
+    if (decoded is! List) return const [];
+    final todos = decoded
         .whereType<Map>()
         .map((todo) => Todo.fromJson(todo.cast<String, dynamic>()))
         .toList();
@@ -74,17 +95,31 @@ class JsonStoreTodoRepository implements TodoRepository {
   }
 
   Future<_StoredTodo?> _readStoredTodo(String key) async {
-    final value = await _store.read(key);
-    if (value is! Map) return null;
-    final todo = Todo.fromJson(value.cast<String, dynamic>());
-    final sortOrder = value['sortOrder'];
+    final bytes = await _store.readBytes(key);
+    if (bytes == null) return null;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(utf8.decode(bytes));
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map) return null;
+    final todo = Todo.fromJson(decoded.cast<String, dynamic>());
+    final sortOrder = decoded['sortOrder'];
     return _StoredTodo(todo, sortOrder is int ? sortOrder : 0);
   }
 
   Future<void> _writeTodo(int sortOrder, Todo todo, Set<String> nextKeys) {
     final key = TodoStorageKeys.forTodo(todo.id);
     nextKeys.add(key);
-    return _store.write(key, {...todo.toJson(), 'sortOrder': sortOrder});
+    final bytes = Uint8List.fromList(
+      utf8.encode(jsonEncode({...todo.toJson(), 'sortOrder': sortOrder})),
+    );
+    return _store.writeBytes(
+      key,
+      bytes,
+      origin: StoreMutationOrigin.application,
+    );
   }
 
   static int _compareStoredTodos(_StoredTodo left, _StoredTodo right) {
