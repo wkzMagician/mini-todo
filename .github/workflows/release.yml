@@ -1,11 +1,12 @@
 name: Release
 on:
   push:
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 jobs:
   release:
-    uses: wkzMagician/dartloom/.github/workflows/flutter_release.yml@9781c803ee0a94d76c21634fa38e8a8c339e7d17
+    uses: wkzMagician/dartloom/.github/workflows/flutter_release.yml@main
     permissions:
       contents: write
     with:

@@ -1,4 +1,4 @@
-﻿name: mini_todo
+name: mini_todo
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -41,6 +41,8 @@ dependencies:
   dartloom_settings: ^0.2.0
   dartloom_settings_secure_storage: ^0.1.0
   dartloom_settings_shared_preferences: ^0.1.0
+  dartloom_singleton: ^0.1.0
+  dartloom_singleton_filelock: ^0.1.0
   dartloom_storage: ^0.2.0
   dartloom_storage_file: ^0.1.0
   dartloom_storage_json_file: ^0.1.0
@@ -123,106 +125,116 @@ dependency_overrides:
   dartloom_autostart:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_autostart
   dartloom_autostart_launch_at_startup:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_autostart_launch_at_startup
   dartloom_localization:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_localization
   dartloom_localization_gen_l10n:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_localization_gen_l10n
   dartloom_logging:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_logging
   dartloom_logging_logger:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_logging_logger
   dartloom_resident:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_resident
   dartloom_resident_tray:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_resident_tray
   dartloom_runtime:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_runtime
   dartloom_settings:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_settings
   dartloom_settings_secure_storage:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_settings_secure_storage
   dartloom_settings_shared_preferences:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_settings_shared_preferences
+  dartloom_singleton:
+    git:
+      url: https://github.com/wkzMagician/dartloom.git
+      ref: main
+      path: packages/dartloom_singleton
+  dartloom_singleton_filelock:
+    git:
+      url: https://github.com/wkzMagician/dartloom.git
+      ref: main
+      path: packages/dartloom_singleton_filelock
   dartloom_storage:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_storage
   dartloom_storage_file:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_storage_file
   dartloom_storage_json_file:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_storage_json_file
   dartloom_sync:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_sync
   dartloom_sync_etag:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_sync_etag
   dartloom_sync_flutter:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_sync_flutter
   dartloom_sync_storage:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: ee7ac65
+      ref: main
       path: packages/dartloom_sync_storage
   dartloom_sync_webdav:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_sync_webdav
   dartloom_sync_workmanager:
     git:
       url: https://github.com/wkzMagician/dartloom.git
-      ref: 5ac34b3f4c78df8b1601c2f5255e763b9e511b82
+      ref: main
       path: packages/dartloom_sync_workmanager
   # dartloom:overrides:end

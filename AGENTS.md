@@ -11,7 +11,7 @@ This project is managed by Dartloom.
 4. Business code belongs in `lib/features`; shared app glue belongs in `lib/app`.
 5. Dartloom owns `lib/capabilities/capabilities.dart` and
    `lib/capabilities/bootstrap.dart`. Application files, including `lib/app`
-   and ARB translations, are never overwritten by `dartloom project update`.
+   and ARB translations, are never overwritten by `dartloom project upgrade`.
 
 ## Capability platform support
 
@@ -31,6 +31,7 @@ optional feature UI instead of duplicating operating-system checks.
 | `sync.default` | `dartloom_sync` | `etag` | android, windows, macos, linux |
 | `localization.default` | `dartloom_localization` | `gen_l10n` | android, windows, macos, linux |
 | `resident.default` | `dartloom_resident` | `tray` | windows, macos, linux |
+| `singleton.default` | `dartloom_singleton` | `filelock` | windows, macos, linux |
 
 ## Sync policy by platform
 
