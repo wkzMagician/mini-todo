@@ -1,10 +1,8 @@
 import 'package:dartloom_resident/dartloom_resident.dart';
-import 'package:dartloom_runtime/dartloom_runtime.dart';
 import 'package:flutter/widgets.dart';
 
-Future<void> configureResidentMenu() async {
-  if (!Dartloom.contains<ResidentService>()) return;
-  final resident = Dartloom.get<ResidentService>();
+Future<void> configureResidentMenu(ResidentService? resident) async {
+  if (resident == null) return;
   final isChinese =
       WidgetsBinding.instance.platformDispatcher.locale.languageCode == 'zh';
 

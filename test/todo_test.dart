@@ -6,7 +6,7 @@ import 'package:dartloom_autostart/dartloom_autostart.dart';
 import 'package:dartloom_logging/dartloom_logging.dart';
 import 'package:dartloom_settings/dartloom_settings.dart';
 import 'package:dartloom_storage/dartloom_storage.dart';
-import 'package:dartloom_storage_json_file/dartloom_storage_json_file.dart';
+import 'package:dartloom_storage_file/dartloom_storage_file.dart';
 import 'package:dartloom_sync/dartloom_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mini_todo/features/todos/application/todo_controller.dart';
@@ -89,8 +89,8 @@ void main() {
   });
 
   test('stores every todo as an independent sync record', () async {
-    final store = MemoryReplicaStore();
-    final repository = ReplicaTodoRepository(store);
+    final store = MemoryObjectStore();
+    final repository = ObjectStoreTodoRepository(store);
     final first = Todo(
       id: 'one',
       title: 'First task',
@@ -109,16 +109,16 @@ void main() {
       (await store.scan()).map((item) => item.key),
       containsAll(['todo-one', 'todo-two']),
     );
-    expect(await store.readBytes(TodoStorageKeys.legacyTodosKey), isNull);
+    expect(await store.read(TodoStorageKeys.legacyTodosKey), isNull);
 
     await repository.save([second]);
-    expect(await store.readBytes('todo-one'), isNull);
+    expect(await store.read('todo-one'), isNull);
     expect((await repository.load()).single, second);
   });
 
-  test('serializes mutations for replica stores', () async {
-    final store = _SerialOnlyReplicaStore();
-    final repository = ReplicaTodoRepository(store);
+  test('serializes mutations for object stores', () async {
+    final store = _SerialOnlyObjectStore();
+    final repository = ObjectStoreTodoRepository(store);
     final todos = [
       Todo(
         id: 'one',
@@ -140,56 +140,57 @@ void main() {
     expect(store.maximumConcurrentMutations, 1);
   });
 
-  test('persists one new task in the real replica file store', () async {
-    final sandbox = await Directory.systemTemp.createTemp('mini_todo_save');
-    addTearDown(() => sandbox.delete(recursive: true));
-    final business = Directory(
-      '${sandbox.path}${Platform.pathSeparator}MiniTodo',
-    );
-    final metadata = Directory(
-      '${sandbox.path}${Platform.pathSeparator}metadata',
-    );
-    final repository = ReplicaTodoRepository(
-      await _openStore(business, metadata),
-    );
-    final todo = Todo(
-      id: 'one',
-      title: 'Only task',
-      granularity: TodoGranularity.day,
-      createdAt: now,
-    );
+  test(
+    'persists one new task in the file object store',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp('mini_todo_save');
+      addTearDown(() => sandbox.delete(recursive: true));
+      final business = Directory(
+        '${sandbox.path}${Platform.pathSeparator}MiniTodo',
+      );
+      final repository = ObjectStoreTodoRepository(await _openStore(business));
+      final todo = Todo(
+        id: 'one',
+        title: 'Only task',
+        granularity: TodoGranularity.day,
+        createdAt: now,
+      );
 
-    await repository.save([todo]);
+      await repository.save([todo]);
 
-    final reopened = await _openStore(business, metadata);
-    expect(await ReplicaTodoRepository(reopened).load(), [todo]);
-    expect(
-      business.listSync().where((entity) => entity.path.endsWith('.tmp')),
-      isEmpty,
-    );
-  });
+      final reopened = await _openStore(business);
+      expect(await ObjectStoreTodoRepository(reopened).load(), [todo]);
+      expect(
+        business.listSync().where((entity) => entity.path.endsWith('.tmp')),
+        isEmpty,
+      );
+    },
+    skip: Platform.isWindows
+        ? 'File-system watch is unavailable in this test sandbox.'
+        : false,
+  );
 
   test('migrates the old combined todo list to independent records', () async {
-    final store = MemoryReplicaStore();
+    final store = MemoryObjectStore();
     final todo = Todo(
       id: 'one',
       title: 'Migrated task',
       granularity: TodoGranularity.day,
       createdAt: now,
     );
-    await store.writeBytes(
+    await store.write(
       TodoStorageKeys.legacyTodosKey,
       Uint8List.fromList(utf8.encode(jsonEncode([todo.toJson()]))),
     );
 
-    final loaded = await ReplicaTodoRepository(store).load();
+    final loaded = await ObjectStoreTodoRepository(store).load();
 
     expect(loaded, [todo]);
-    expect(await store.readBytes(TodoStorageKeys.legacyTodosKey), isNull);
-    expect(await store.readBytes('todo-one'), isNotNull);
+    expect(await store.read(TodoStorageKeys.legacyTodosKey), isNull);
+    expect(await store.read('todo-one'), isNotNull);
   });
 
-  test('leaves startup scheduling to Dartloom SyncService', () async {
+  test('leaves startup scheduling to the composed SyncService', () async {
     final settings = MemorySettingsStore();
     final service = _RecordingSyncService();
     final controller = TodoController(
@@ -308,15 +309,10 @@ final class _RecordingSyncService implements SyncService {
   Future<void> start() async {}
 }
 
-Future<JsonDirectoryStore> _openStore(Directory business, Directory metadata) =>
-    JsonDirectoryStore.openAt(
-      directory: business.absolute,
-      metadataDirectory: metadata.absolute,
-      allowedKeys: const {'.mini-todo.json'},
-      allowedPrefixes: const ['todo-'],
-    );
+Future<FileObjectStore> _openStore(Directory business) =>
+    FileObjectStore.open(root: business.absolute, hierarchical: false);
 
-final class _SerialOnlyReplicaStore implements ReplicaStore {
+final class _SerialOnlyObjectStore implements ObjectStore {
   final _values = <String, Uint8List>{};
   var _activeMutations = 0;
   var maximumConcurrentMutations = 0;
@@ -325,44 +321,26 @@ final class _SerialOnlyReplicaStore implements ReplicaStore {
   String get identity => 'serial-only';
 
   @override
-  Stream<StoreChange> get changes => const Stream.empty();
+  Stream<StorageChange> get changes => const Stream.empty();
 
   @override
   bool acceptsKey(String key) => true;
 
   @override
-  Future<void> delete(
-    String key, {
-    StoreMutationOrigin origin = StoreMutationOrigin.application,
-  }) => _mutate(() => _values.remove(key));
+  Future<void> delete(String key) => _mutate(() => _values.remove(key));
 
   @override
-  Future<List<ReplicaObjectMetadata>> scan() async => [
+  Future<List<StoredObject>> scan() async => [
     for (final entry in _values.entries)
-      ReplicaObjectMetadata(key: entry.key, size: entry.value.length),
+      StoredObject(key: entry.key, size: entry.value.length),
   ];
 
   @override
-  Future<Uint8List?> readBytes(String key) async => _values[key];
+  Future<Uint8List?> read(String key) async => _values[key];
 
   @override
-  Future<void> writeBytes(
-    String key,
-    Uint8List data, {
-    StoreMutationOrigin origin = StoreMutationOrigin.application,
-  }) => _mutate(() => _values[key] = data);
-
-  @override
-  Future<List<StoreIntent>> explicitIntents() async => const [];
-
-  @override
-  Future<void> forgetExplicitIntent(String operationId) async {}
-
-  @override
-  Future<Set<String>> explicitDeletedKeys() async => const {};
-
-  @override
-  Future<void> forgetExplicitDelete(String key) async {}
+  Future<void> write(String key, Uint8List data) =>
+      _mutate(() => _values[key] = data);
 
   @override
   Future<void> close() async {}

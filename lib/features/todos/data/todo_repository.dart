@@ -31,10 +31,10 @@ class MemoryTodoRepository implements TodoRepository {
   Future<void> save(List<Todo> todos) async => _todos = List<Todo>.from(todos);
 }
 
-class ReplicaTodoRepository implements TodoRepository {
-  ReplicaTodoRepository(this._store);
+class ObjectStoreTodoRepository implements TodoRepository {
+  ObjectStoreTodoRepository(this._store);
 
-  final ReplicaStore _store;
+  final ObjectStore _store;
 
   @override
   Future<List<Todo>> load() async {
@@ -60,24 +60,19 @@ class ReplicaTodoRepository implements TodoRepository {
     }
     for (final key in existingKeys) {
       if (!nextKeys.contains(key)) {
-        await _store.delete(key, origin: StoreMutationOrigin.application);
+        await _store.delete(key);
       }
     }
     if (allKeys.contains(TodoStorageKeys.legacyTodosKey)) {
-      await _store.delete(
-        TodoStorageKeys.legacyTodosKey,
-        origin: StoreMutationOrigin.application,
-      );
+      await _store.delete(TodoStorageKeys.legacyTodosKey);
     }
   }
 
-  Future<List<String>> _existingKeys() async => (await _store.scan())
-      .where((item) => item.exists)
-      .map((item) => item.key)
-      .toList();
+  Future<List<String>> _existingKeys() async =>
+      (await _store.scan()).map((item) => item.key).toList();
 
   Future<List<Todo>> _migrateLegacyTodos() async {
-    final bytes = await _store.readBytes(TodoStorageKeys.legacyTodosKey);
+    final bytes = await _store.read(TodoStorageKeys.legacyTodosKey);
     if (bytes == null) return const [];
     final Object? decoded;
     try {
@@ -95,7 +90,7 @@ class ReplicaTodoRepository implements TodoRepository {
   }
 
   Future<_StoredTodo?> _readStoredTodo(String key) async {
-    final bytes = await _store.readBytes(key);
+    final bytes = await _store.read(key);
     if (bytes == null) return null;
     final Object? decoded;
     try {
@@ -115,11 +110,7 @@ class ReplicaTodoRepository implements TodoRepository {
     final bytes = Uint8List.fromList(
       utf8.encode(jsonEncode({...todo.toJson(), 'sortOrder': sortOrder})),
     );
-    return _store.writeBytes(
-      key,
-      bytes,
-      origin: StoreMutationOrigin.application,
-    );
+    return _store.write(key, bytes);
   }
 
   static int _compareStoredTodos(_StoredTodo left, _StoredTodo right) {

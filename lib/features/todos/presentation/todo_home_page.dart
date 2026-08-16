@@ -1,8 +1,6 @@
 import 'package:dartloom_autostart/dartloom_autostart.dart';
 import 'package:dartloom_logging/dartloom_logging.dart';
-import 'package:dartloom_runtime/dartloom_runtime.dart';
 import 'package:dartloom_settings/dartloom_settings.dart';
-import 'package:dartloom_storage/dartloom_storage.dart';
 import 'package:dartloom_sync/dartloom_sync.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,20 +21,20 @@ bool get _usesDesktopWindowChrome =>
 
 class TodoHomePage extends StatefulWidget {
   const TodoHomePage({
-    this.repository,
-    this.settings,
+    required this.repository,
+    required this.settings,
+    required this.logger,
     this.autostart,
-    this.logger,
     this.syncService,
     required this.locale,
     required this.onLocaleChanged,
     super.key,
   });
 
-  final TodoRepository? repository;
-  final SettingsStore? settings;
+  final TodoRepository repository;
+  final SettingsStore settings;
   final AutostartService? autostart;
-  final AppLogger? logger;
+  final AppLogger logger;
   final SyncService? syncService;
   final Locale locale;
   final Future<void> Function(Locale locale) onLocaleChanged;
@@ -63,21 +61,11 @@ class _TodoHomePageState extends State<TodoHomePage> {
   void initState() {
     super.initState();
     _controller = TodoController(
-      repository:
-          widget.repository ??
-          ReplicaTodoRepository(Dartloom.get<ReplicaStore>(name: 'json')),
-      settings: widget.settings ?? Dartloom.get<SettingsStore>(),
-      autostart:
-          widget.autostart ??
-          (Dartloom.contains<AutostartService>()
-              ? Dartloom.get<AutostartService>()
-              : null),
-      logger: widget.logger ?? Dartloom.get<AppLogger>(),
-      syncService:
-          widget.syncService ??
-          (Dartloom.contains<SyncService>()
-              ? Dartloom.get<SyncService>()
-              : null),
+      repository: widget.repository,
+      settings: widget.settings,
+      autostart: widget.autostart,
+      logger: widget.logger,
+      syncService: widget.syncService,
     );
     _controller.initialize().then((_) {
       if (!mounted) return;
