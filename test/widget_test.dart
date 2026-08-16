@@ -7,7 +7,7 @@ import 'package:mini_todo/app/app.dart';
 import 'package:mini_todo/features/todos/data/todo_repository.dart';
 
 void main() {
-  DartloomApp buildTestApp() => DartloomApp(
+  MiniTodoApp buildTestApp() => MiniTodoApp(
     repository: MemoryTodoRepository(),
     settings: MemorySettingsStore(),
     autostart: MemoryAutostartService(),
@@ -40,7 +40,7 @@ void main() {
 
   testWidgets('runs without desktop-only capabilities', (tester) async {
     await tester.pumpWidget(
-      DartloomApp(
+      MiniTodoApp(
         repository: MemoryTodoRepository(),
         settings: MemorySettingsStore(),
         logger: MemoryLogger(),

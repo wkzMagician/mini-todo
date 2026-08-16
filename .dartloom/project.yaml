@@ -1,0 +1,29 @@
+platforms:
+  - android
+  - ios
+  - windows
+  - macos
+  - linux
+  - web
+
+packages:
+  - dartloom_autostart
+  - dartloom_autostart_launch_at_startup
+  - dartloom_logging
+  - dartloom_logging_logger
+  - dartloom_resident
+  - dartloom_resident_tray
+  - dartloom_settings
+  - dartloom_settings_secure_storage
+  - dartloom_settings_shared_preferences
+  - dartloom_singleton
+  - dartloom_singleton_socket
+  - dartloom_storage
+  - dartloom_storage_file
+  - dartloom_storage_indexeddb
+  - dartloom_sync
+  - dartloom_sync_etag
+  - dartloom_sync_flutter
+  - dartloom_sync_storage
+  - dartloom_sync_webdav
+  - dartloom_sync_workmanager
