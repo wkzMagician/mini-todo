@@ -42,7 +42,7 @@ dependencies:
   dartloom_settings_secure_storage: ^0.1.0
   dartloom_settings_shared_preferences: ^0.1.0
   dartloom_singleton: ^0.1.0
-  dartloom_singleton_filelock: ^0.1.0
+  dartloom_singleton_socket: ^0.1.0
   dartloom_storage: ^0.2.0
   dartloom_storage_file: ^0.1.0
   dartloom_storage_json_file: ^0.1.0
@@ -187,11 +187,11 @@ dependency_overrides:
       url: https://github.com/wkzMagician/dartloom.git
       ref: main
       path: packages/dartloom_singleton
-  dartloom_singleton_filelock:
+  dartloom_singleton_socket:
     git:
       url: https://github.com/wkzMagician/dartloom.git
       ref: main
-      path: packages/dartloom_singleton_filelock
+      path: packages/dartloom_singleton_socket
   dartloom_storage:
     git:
       url: https://github.com/wkzMagician/dartloom.git

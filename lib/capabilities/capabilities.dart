@@ -23,11 +23,12 @@ import 'package:dartloom_sync_etag/dartloom_sync_etag.dart';
 import 'package:dartloom_sync_webdav/dartloom_sync_webdav.dart';
 import 'package:dartloom_localization_gen_l10n/dartloom_localization_gen_l10n.dart';
 import 'package:dartloom_resident_tray/dartloom_resident_tray.dart';
-import 'package:dartloom_singleton_filelock/dartloom_singleton_filelock.dart';
+import 'package:dartloom_singleton_socket/dartloom_singleton_socket.dart';
 
 Future<void> initializeDartloom({
   Map<String, DartloomFactory> customFactories = const {},
   DartloomStartupScope scope = DartloomStartupScope.foreground,
+  bool ensureSingleInstance = false,
 }) async {
   late final Map<String, DartloomFactory> factories;
   final officialFactories = <String, DartloomFactory>{
@@ -67,9 +68,9 @@ Future<void> initializeDartloom({
       );
       return DartloomBinding<ResidentService>(value, dispose: value.dispose);
     },
-    'filelock': (context) {
-      final value = FileLockSingleInstanceService(
-        resident: context.maybeGet<ResidentService>(),
+    'socket': (context) {
+      final value = SocketSingleInstanceService(
+        residentProvider: () => context.maybeGet<ResidentService>(),
       );
       return DartloomBinding<SingleInstanceService>(value);
     },
@@ -179,20 +180,13 @@ Future<void> initializeDartloom({
   factories = {...officialFactories, ...customFactories};
   await Dartloom.initialize(
     <DartloomRegistration<Object>>[
-      if (_dartloomSupportsCurrentPlatform(const {
-        "android",
-        "ios",
-        "windows",
-        "macos",
-        "linux",
-        "web",
-      }))
-        DartloomRegistration<SyncProfileScope>(
-          capability: 'sync_profile',
+      if (_dartloomSupportsCurrentPlatform(const {"windows", "macos", "linux"}))
+        DartloomRegistration<SingleInstanceService>(
+          capability: 'singleton',
           name: "default",
-          factory: 'sync_profile_scope',
-          scope: DartloomStartupScope.both,
-          dependsOn: const [DartloomReference('settings', 'default')],
+          factory: "socket",
+          scope: DartloomStartupScope.foreground,
+          options: <String, Object?>{},
         ),
       if (_dartloomSupportsCurrentPlatform(const {
         "android",
@@ -392,17 +386,32 @@ Future<void> initializeDartloom({
             "tooltip": "Mini Todo",
           },
         ),
-      if (_dartloomSupportsCurrentPlatform(const {"windows", "macos", "linux"}))
-        DartloomRegistration<SingleInstanceService>(
-          capability: 'singleton',
+      if (_dartloomSupportsCurrentPlatform(const {
+        "android",
+        "ios",
+        "windows",
+        "macos",
+        "linux",
+        "web",
+      }))
+        DartloomRegistration<SyncProfileScope>(
+          capability: 'sync_profile',
           name: "default",
-          factory: "filelock",
-          scope: DartloomStartupScope.foreground,
-          options: <String, Object?>{},
+          factory: 'sync_profile_scope',
+          scope: DartloomStartupScope.both,
+          dependsOn: const [DartloomReference('settings', 'default')],
         ),
     ],
     factories: factories,
     scope: scope,
+    onInitialized: ensureSingleInstance
+        ? (registration) async {
+            if (registration.capability == 'singleton') {
+              await Dartloom.get<SingleInstanceService>()
+                  .ensureSingleInstance();
+            }
+          }
+        : null,
   );
 }
 

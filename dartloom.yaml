@@ -138,7 +138,7 @@ capabilities:
   singleton:
     instances:
       default:
-        implementation: "filelock"
+        implementation: "socket"
 
 sources:
   capabilities: github
