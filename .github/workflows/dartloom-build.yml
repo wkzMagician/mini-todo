@@ -18,13 +18,26 @@ permissions:
   contents: read
 
 jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      platforms: ${{ steps.set-matrix.outputs.platforms }}
+    steps:
+      - id: set-matrix
+        run: |
+          if [ "${{ inputs.platform }}" = "all" ]; then
+            echo 'platforms=["windows","linux","macos","android","ios","web"]' >> "$GITHUB_OUTPUT"
+          else
+            echo "platforms=[\"${{ inputs.platform }}\"]" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: matrix
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows, linux, macos, android, ios, web]
-    if: ${{ inputs.platform == 'all' || inputs.platform == matrix.platform }}
-    runs-on: ${{ matrix.platform == 'windows' && 'windows-latest' || matrix.platform == 'macos' && 'macos-latest' || 'ubuntu-latest' }}
+        platform: ${{ fromJSON(needs.matrix.outputs.platforms) }}
+    runs-on: ${{ matrix.platform == 'windows' && 'windows-latest' || (matrix.platform == 'macos' || matrix.platform == 'ios') && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
         with:
