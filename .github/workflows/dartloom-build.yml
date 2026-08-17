@@ -1,0 +1,36 @@
+name: Dartloom Cloud Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform: { required: true, type: string }
+      git_ref: { required: true, type: string }
+      mode: { required: true, default: release, type: string }
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows, linux, macos, android, ios, web]
+    if: ${{ inputs.platform == 'all' || inputs.platform == matrix.platform }}
+    runs-on: ${{ matrix.platform == 'windows' && 'windows-latest' || matrix.platform == 'macos' && 'macos-latest' || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: ${{ inputs.git_ref }} }
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable }
+      - run: flutter pub get
+      - shell: bash
+        run: |
+          case "${{ matrix.platform }}" in
+            android) flutter build apk --${{ inputs.mode }} ;;
+            ios) flutter build ios --${{ inputs.mode }} --no-codesign ;;
+            *) flutter build ${{ matrix.platform }} --${{ inputs.mode }} ;;
+          esac
+      - shell: bash
+        run: |
+          mkdir -p dartloom-artifact
+          printf '{"schema_version":1,"platform":"%s","commit":"%s","files":[]}' "${{ matrix.platform }}" "${{ github.sha }}" > dartloom-artifact/dartloom-build.json
+      - uses: actions/upload-artifact@v4
+        with: { name: dartloom-${{ matrix.platform }}, path: dartloom-artifact }

@@ -8,6 +8,7 @@ import 'package:dartloom_settings/dartloom_settings.dart';
 import 'package:dartloom_storage/dartloom_storage.dart';
 import 'package:dartloom_storage_file/dartloom_storage_file.dart';
 import 'package:dartloom_sync/dartloom_sync.dart';
+import 'package:dartloom_sync_storage/dartloom_sync_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mini_todo/features/todos/application/todo_controller.dart';
 import 'package:mini_todo/features/todos/data/todo_repository.dart';
@@ -249,6 +250,45 @@ void main() {
       expect(await settings.read('sync.webdav.password'), isNull);
       expect(await settings.read('sync.webdav.url'), isNull);
       controller.dispose();
+    },
+  );
+
+  test(
+    'journaled repository records intents for local mutations and sync',
+    () async {
+      final objects = MemoryObjectStore();
+      final metadata = MemoryObjectStore();
+      final journaled = await JournaledObjectStore.open(
+        objects: objects,
+        metadata: metadata,
+      );
+      final repository = ObjectStoreTodoRepository(journaled);
+      final settings = MemorySettingsStore();
+      final service = _RecordingSyncService();
+      final controller = TodoController(
+        repository: repository,
+        settings: settings,
+        logger: MemoryLogger(),
+        syncService: service,
+      );
+
+      await controller.initialize();
+      await controller.addTask('Write unit test', TodoGranularity.day);
+
+      final intents = await journaled.intents();
+      expect(intents, isNotEmpty);
+      expect(intents.first.key, startsWith('todo-'));
+      expect(intents.first.kind, LocalMutationKind.create);
+
+      await controller.saveSyncConfiguration(
+        url: 'https://dav.jianguoyun.com/dav/',
+        username: 'user@example.com',
+        password: 'app-password',
+      );
+      expect(service.lastDraft?.secrets, {'password': 'app-password'});
+
+      controller.dispose();
+      await journaled.close();
     },
   );
 }

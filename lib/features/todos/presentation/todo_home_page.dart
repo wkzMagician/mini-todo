@@ -557,8 +557,16 @@ class _TodoHomePageState extends State<TodoHomePage> {
   }
 
   Future<void> _syncNow() async {
-    await _saveSyncSettings();
-    await _controller.sync();
+    final password = _syncPasswordUnchanged ? '' : _syncPasswordController.text;
+    final hasChanges =
+        _syncUrlController.text != _controller.syncUrl ||
+        _syncUsernameController.text != _controller.syncUsername ||
+        password.isNotEmpty;
+    if (hasChanges) {
+      await _saveSyncSettings();
+    } else {
+      await _controller.sync();
+    }
   }
 
   String _syncStatusLabel(AppLocalizations strings) {

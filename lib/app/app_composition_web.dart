@@ -20,6 +20,10 @@ Future<AppServices> createApplicationServices() async {
   final logger = LoggerAppLogger();
   final objects = IndexedDbObjectStore(namespace: 'mini-todo-objects');
   final metadata = IndexedDbObjectStore(namespace: 'mini-todo-sync');
+  final journaledStore = await JournaledObjectStore.open(
+    objects: objects,
+    metadata: metadata,
+  );
   final scope = await SyncProfileScope.open(settings, 'default');
   final signals = FlutterSyncRuntimeSignals();
   await signals.start();
@@ -47,7 +51,7 @@ Future<AppServices> createApplicationServices() async {
   await sync.start();
 
   return AppServices(
-    repository: ObjectStoreTodoRepository(objects),
+    repository: ObjectStoreTodoRepository(journaledStore),
     settings: settings,
     logger: logger,
     sync: sync,
@@ -55,6 +59,7 @@ Future<AppServices> createApplicationServices() async {
       await sync.dispose();
       await signals.dispose();
       await scope.dispose();
+      await journaledStore.close();
     },
   );
 }

@@ -19,3 +19,11 @@ This project uses the current Dartloom package-configurator model.
   `pubspec.yaml` until upstream publishes compatible package versions.
 
 Before finishing, run `dart format .`, `flutter analyze`, and `flutter test`.
+
+<!-- dartloom:begin -->
+## Dartloom packages
+
+Selected platforms: Android, Ios, Windows, Macos, Linux, Web
+
+No optional Dartloom packages are selected.
+<!-- dartloom:end -->

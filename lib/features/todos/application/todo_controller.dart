@@ -141,7 +141,12 @@ class TodoController extends ChangeNotifier {
         _settings.remove(syncWebDavPasswordKey),
       ]);
     }
-    if (active != null) _applyProfile(active);
+    if (active != null) {
+      _applyProfile(active);
+      if (active.backend == 'webdav' && _todos.isNotEmpty) {
+        await _repository.save(_todos);
+      }
+    }
   }
 
   void _applyProfile(SyncProfile profile) {
@@ -319,6 +324,9 @@ class TodoController extends ChangeNotifier {
           secrets: {if (password.isNotEmpty) 'password': password},
         ),
       );
+      if (_todos.isNotEmpty) {
+        await _repository.save(_todos);
+      }
       // Re-open the profile unconditionally. The default profile is already
       // active (id 'default'), so relying on saved.isActive would skip this
       // step, leave the coordinator holding the previously-opened (empty)

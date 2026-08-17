@@ -37,6 +37,10 @@ Future<AppServices> _compose({bool background = false}) async {
     root: paths.metadataRoot,
     hierarchical: false,
   );
+  final journaledStore = await JournaledObjectStore.open(
+    objects: store,
+    metadata: metadata,
+  );
   final scope = await SyncProfileScope.open(settings, 'default');
   final signals = background ? null : FlutterSyncRuntimeSignals();
   await signals?.start();
@@ -100,7 +104,7 @@ Future<AppServices> _compose({bool background = false}) async {
   }
 
   return AppServices(
-    repository: ObjectStoreTodoRepository(store),
+    repository: ObjectStoreTodoRepository(journaledStore),
     settings: settings,
     logger: logger,
     autostart: autostart,
@@ -113,6 +117,7 @@ Future<AppServices> _compose({bool background = false}) async {
       await sync.dispose();
       await signals?.dispose();
       await scope.dispose();
+      await journaledStore.close();
     },
   );
 }
