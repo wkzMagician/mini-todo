@@ -291,6 +291,43 @@ void main() {
       await journaled.close();
     },
   );
+
+  test(
+    'persists todos through journaled file object stores',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'mini_todo_journal_test',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+      final business = Directory('${sandbox.path}/business');
+      final metadataDir = Directory('${sandbox.path}/metadata');
+
+      final store = await FileObjectStore.open(root: business);
+      final metadata = await FileObjectStore.open(root: metadataDir);
+      final journaled = await JournaledObjectStore.open(
+        objects: store,
+        metadata: metadata,
+      );
+      final repository = ObjectStoreTodoRepository(journaled);
+      final todo = Todo(
+        id: 'one',
+        title: 'Persisted task',
+        granularity: TodoGranularity.day,
+        createdAt: now,
+      );
+
+      await repository.save([todo]);
+
+      final loaded = await repository.load();
+      expect(loaded, [todo]);
+      expect(await journaled.intents(), isNotEmpty);
+
+      await journaled.close();
+    },
+    skip: Platform.isWindows
+        ? 'File-system watch is unavailable in this test sandbox.'
+        : false,
+  );
 }
 
 final class _RecordingSyncService implements SyncService {
@@ -350,7 +387,7 @@ final class _RecordingSyncService implements SyncService {
 }
 
 Future<FileObjectStore> _openStore(Directory business) =>
-    FileObjectStore.open(root: business.absolute, hierarchical: false);
+    FileObjectStore.open(root: business.absolute);
 
 final class _SerialOnlyObjectStore implements ObjectStore {
   final _values = <String, Uint8List>{};

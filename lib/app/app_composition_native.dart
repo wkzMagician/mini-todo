@@ -29,14 +29,8 @@ Future<AppServices> _compose({bool background = false}) async {
   final secrets = const SecureSettingsStore();
   final logger = LoggerAppLogger();
   final paths = await MiniTodoPaths.resolve();
-  final store = await FileObjectStore.open(
-    root: paths.businessRoot,
-    hierarchical: false,
-  );
-  final metadata = await FileObjectStore.open(
-    root: paths.metadataRoot,
-    hierarchical: false,
-  );
+  final store = await FileObjectStore.open(root: paths.businessRoot);
+  final metadata = await FileObjectStore.open(root: paths.metadataRoot);
   final journaledStore = await JournaledObjectStore.open(
     objects: store,
     metadata: metadata,
