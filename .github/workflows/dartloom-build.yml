@@ -3,9 +3,19 @@ name: Dartloom Cloud Build
 on:
   workflow_dispatch:
     inputs:
-      platform: { required: true, type: string }
-      git_ref: { required: true, type: string }
-      mode: { required: true, default: release, type: string }
+      platform:
+        required: true
+        type: string
+      git_ref:
+        required: true
+        type: string
+      mode:
+        required: true
+        default: release
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -17,20 +27,80 @@ jobs:
     runs-on: ${{ matrix.platform == 'windows' && 'windows-latest' || matrix.platform == 'macos' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
-        with: { ref: ${{ inputs.git_ref }} }
+        with:
+          ref: ${{ inputs.git_ref }}
       - uses: subosito/flutter-action@v2
-        with: { channel: stable }
+        with:
+          channel: stable
       - run: flutter pub get
-      - shell: bash
+      - name: Install Linux dependencies
+        if: ${{ matrix.platform == 'linux' }}
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libsecret-1-dev libayatana-appindicator3-dev
+      - name: Install Windows packaging tools
+        if: ${{ matrix.platform == 'windows' }}
+        run: choco install innosetup --no-progress -y
+      - name: Build Android
+        if: ${{ matrix.platform == 'android' }}
+        run: flutter build apk --${{ inputs.mode }}
+      - name: Package Android
+        if: ${{ matrix.platform == 'android' }}
+        shell: bash
         run: |
-          case "${{ matrix.platform }}" in
-            android) flutter build apk --${{ inputs.mode }} ;;
-            ios) flutter build ios --${{ inputs.mode }} --no-codesign ;;
-            *) flutter build ${{ matrix.platform }} --${{ inputs.mode }} ;;
-          esac
-      - shell: bash
+          mkdir -p artifact
+          cp build/app/outputs/flutter-apk/app-${{ inputs.mode }}.apk artifact/mini_todo-android.apk
+      - name: Build iOS
+        if: ${{ matrix.platform == 'ios' }}
+        run: flutter build ios --${{ inputs.mode }} --no-codesign
+      - name: Package iOS IPA
+        if: ${{ matrix.platform == 'ios' }}
+        shell: bash
         run: |
-          mkdir -p dartloom-artifact
-          printf '{"schema_version":1,"platform":"%s","commit":"%s","files":[]}' "${{ matrix.platform }}" "${{ github.sha }}" > dartloom-artifact/dartloom-build.json
+          mkdir -p artifact Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -r artifact/mini_todo.ipa Payload
+      - name: Build macOS
+        if: ${{ matrix.platform == 'macos' }}
+        run: flutter build macos --${{ inputs.mode }}
+      - name: Package macOS
+        if: ${{ matrix.platform == 'macos' }}
+        shell: bash
+        run: |
+          mkdir -p artifact
+          ditto -c -k --keepParent "build/macos/Build/Products/${{ inputs.mode == 'release' && 'Release' || 'Debug' }}/mini_todo.app" artifact/mini_todo-macos.zip
+      - name: Build Windows
+        if: ${{ matrix.platform == 'windows' }}
+        run: flutter build windows --${{ inputs.mode }}
+      - name: Package Windows installer
+        if: ${{ matrix.platform == 'windows' }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifact
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\mini_todo_setup.iss
+          Move-Item -Force dist\*.exe artifact\
+      - name: Build Linux
+        if: ${{ matrix.platform == 'linux' }}
+        run: flutter build linux --${{ inputs.mode }}
+      - name: Package Linux
+        if: ${{ matrix.platform == 'linux' }}
+        shell: bash
+        run: |
+          mkdir -p artifact
+          tar -czf artifact/mini_todo-linux-x64.tar.gz -C build/linux/x64/${{ inputs.mode == 'release' && 'release' || 'debug' }} bundle
+      - name: Build Web
+        if: ${{ matrix.platform == 'web' }}
+        run: flutter build web --${{ inputs.mode }}
+      - name: Package Web
+        if: ${{ matrix.platform == 'web' }}
+        shell: bash
+        run: |
+          mkdir -p artifact
+          cd build/web
+          zip -r ../../artifact/mini_todo-web.zip .
+      - name: Write build metadata
+        shell: bash
+        run: |
+          printf '{"schema_version":1,"platform":"%s","commit":"%s","files":[]}' "${{ matrix.platform }}" "${{ github.sha }}" > artifact/dartloom-build.json
       - uses: actions/upload-artifact@v4
-        with: { name: dartloom-${{ matrix.platform }}, path: dartloom-artifact }
+        with:
+          name: dartloom-${{ matrix.platform }}
+          path: artifact
