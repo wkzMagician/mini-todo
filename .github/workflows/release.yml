@@ -150,8 +150,8 @@ jobs:
                 - libsecret
                 - libappindicator-gtk3
           EOF
-          nfpm package -f packaging/nfpm.yaml -p deb -o dist/mini_todo-${VERSION}-amd64.deb
-          nfpm package -f packaging/nfpm.yaml -p rpm -o dist/mini_todo-${VERSION}-x86_64.rpm
+          nfpm package -f packaging/nfpm.yaml -p deb -t dist/mini_todo-${VERSION}-amd64.deb
+          nfpm package -f packaging/nfpm.yaml -p rpm -t dist/mini_todo-${VERSION}-x86_64.rpm
       - uses: actions/upload-artifact@v4
         with:
           name: linux
