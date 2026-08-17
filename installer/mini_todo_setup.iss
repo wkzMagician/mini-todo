@@ -2,7 +2,7 @@
 ; Compiled automatically by GitHub Actions or via local ISCC.exe
 
 #define MyAppName "Mini Todo"
-#define MyAppVersion "1.0.9"
+#define MyAppVersion "1.0.10"
 #define MyAppPublisher "com.example"
 #define MyAppExeName "mini_todo.exe"
 #define MyAppId "{{4C5B9A8E-3D6F-4A2B-9C1E-7F2A6D0B8E4A}"
