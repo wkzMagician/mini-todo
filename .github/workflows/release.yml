@@ -1,15 +1,107 @@
 name: Release
+
 on:
   push:
     branches: [main]
     tags: ['v*']
   workflow_dispatch:
+
+permissions:
+  contents: write
+
 jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - run: flutter build appbundle --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: build/app/outputs/**
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build ipa --release --no-codesign
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: build/ios/ipa/**
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build macos --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: build/macos/Build/Products/Release/**
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: build/windows/**/Release/**
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build linux --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: build/linux/**/release/**
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build web --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: build/web/**
+
   release:
-    uses: wkzMagician/dartloom/.github/workflows/flutter_release.yml@main
-    permissions:
-      contents: write
-    with:
-      build_android: true
-      build_windows: true
-      build_linux: true
+    needs: [android, ios, macos, windows, linux, web]
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: '**/*'
