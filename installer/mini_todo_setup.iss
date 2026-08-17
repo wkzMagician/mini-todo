@@ -1,8 +1,8 @@
 ; Inno Setup script for Mini Todo (Windows x64 installer)
-; Build with: "C:\Program Files\Inno Setup 7\iscc.exe" installer\mini_todo_setup.iss
+; Compiled automatically by GitHub Actions or via local ISCC.exe
 
 #define MyAppName "Mini Todo"
-#define MyAppVersion "1.0.7"
+#define MyAppVersion "1.0.8"
 #define MyAppPublisher "com.example"
 #define MyAppExeName "mini_todo.exe"
 #define MyAppId "{{4C5B9A8E-3D6F-4A2B-9C1E-7F2A6D0B8E4A}"
