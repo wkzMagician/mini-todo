@@ -2,7 +2,7 @@
 ; Build with: "C:\Program Files\Inno Setup 7\iscc.exe" installer\mini_todo_setup.iss
 
 #define MyAppName "Mini Todo"
-#define MyAppVersion "1.0.6"
+#define MyAppVersion "1.0.7"
 #define MyAppPublisher "com.example"
 #define MyAppExeName "mini_todo.exe"
 #define MyAppId "{{4C5B9A8E-3D6F-4A2B-9C1E-7F2A6D0B8E4A}"
