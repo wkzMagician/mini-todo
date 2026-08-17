@@ -96,14 +96,66 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y dpkg-dev libgtk-3-dev libsecret-1-dev libayatana-appindicator3-dev
       - run: flutter pub get
       - run: flutter build linux --release
-      - name: Package Linux bundle
+      - name: Install nfpm
         run: |
-          mkdir -p dist
+          curl -sL -o /tmp/nfpm.deb https://github.com/goreleaser/nfpm/releases/latest/download/nfpm_amd64.deb
+          sudo dpkg -i /tmp/nfpm.deb
+      - name: Package Linux bundle (.tar.gz, .deb, .rpm)
+        run: |
+          set -euo pipefail
+          VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          mkdir -p dist packaging
+          # generic bundle
           tar -czf dist/mini_todo-linux-x64.tar.gz -C build/linux/x64/release bundle
+          # desktop entry
+          cat > packaging/mini_todo.desktop <<'EOF'
+          [Desktop Entry]
+          Name=Mini Todo
+          Comment=A simple todo manager
+          Exec=/opt/mini_todo/mini_todo
+          Icon=mini_todo
+          Terminal=false
+          Type=Application
+          Categories=Utility;
+          EOF
+          # nfpm config (builds both .deb and .rpm from one spec)
+          cat > packaging/nfpm.yaml <<EOF
+          name: mini_todo
+          arch: amd64
+          platform: linux
+          version: ${VERSION}
+          section: utils
+          priority: optional
+          maintainer: Kunzhen Wu <wkzmagician@gmail.com>
+          description: Mini Todo desktop application
+          homepage: https://github.com/wkzMagician/mini-todo
+
+          contents:
+            - src: ./build/linux/x64/release/bundle/**
+              dst: /opt/mini_todo
+            - src: ./packaging/mini_todo.desktop
+              dst: /usr/share/applications/mini_todo.desktop
+            - src: ./assets/tray_icon.png
+              dst: /usr/share/icons/hicolor/256x256/apps/mini_todo.png
+
+          overrides:
+            deb:
+              depends:
+                - libgtk-3-0
+                - libsecret-1-0
+                - libayatana-appindicator3-1
+            rpm:
+              depends:
+                - gtk3
+                - libsecret
+                - libappindicator-gtk3
+          EOF
+          nfpm package -f packaging/nfpm.yaml -p deb -o dist/mini_todo-${VERSION}-amd64.deb
+          nfpm package -f packaging/nfpm.yaml -p rpm -o dist/mini_todo-${VERSION}-x86_64.rpm
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: dist/mini_todo-linux-x64.tar.gz
+          path: dist/mini_todo-*
 
   web:
     runs-on: ubuntu-latest
