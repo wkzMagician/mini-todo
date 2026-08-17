@@ -189,5 +189,17 @@ const _syncPolicy = <String, Object?>{
         'timeout': '2m',
       },
     },
+    'ios': {
+      'background': {
+        'enabled': true,
+        'enqueue_on_pending': true,
+        'network': 'connected',
+        'requires_battery_not_low': true,
+        'requires_charging': false,
+        'requires_network': true,
+        'timeout': '25s',
+        'earliest_begin': '15m',
+      },
+    },
   },
 };
