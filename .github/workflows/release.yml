@@ -98,7 +98,7 @@ jobs:
       - run: flutter build linux --release
       - name: Install nfpm
         run: |
-          curl -sL -o /tmp/nfpm.deb https://github.com/goreleaser/nfpm/releases/latest/download/nfpm_amd64.deb
+          curl -sL -o /tmp/nfpm.deb https://github.com/goreleaser/nfpm/releases/download/v2.47.0/nfpm_2.47.0_amd64.deb
           sudo dpkg -i /tmp/nfpm.deb
       - name: Package Linux bundle (.tar.gz, .deb, .rpm)
         run: |
