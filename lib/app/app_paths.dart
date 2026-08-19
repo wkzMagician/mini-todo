@@ -11,11 +11,34 @@ final class MiniTodoPaths {
 
   static Future<MiniTodoPaths> resolve() async {
     final support = (await getApplicationSupportDirectory()).absolute;
+    final businessRoot = Directory(
+      p.join(support.path, 'business_data'),
+    ).absolute;
+    final metadataRoot = Directory(
+      p.join(support.path, 'sync_metadata'),
+    ).absolute;
+
+    // Migrate from legacy single MiniTodo directory if needed.
+    final legacyBusiness = Directory(p.join(support.path, 'MiniTodo')).absolute;
+    if (!await businessRoot.exists() && await legacyBusiness.exists()) {
+      await businessRoot.create(recursive: true);
+      await for (final entity in legacyBusiness.list(followLinks: false)) {
+        final name = p.basename(entity.path);
+        // Do not copy any legacy nested metadata directories
+        if (name.toLowerCase() == 'sync-metadata' ||
+            name.toLowerCase() == 'mini_todo' ||
+            name.startsWith('.')) {
+          continue;
+        }
+        if (entity is File) {
+          await entity.copy(p.join(businessRoot.path, name));
+        }
+      }
+    }
+
     return MiniTodoPaths(
-      businessRoot: Directory(p.join(support.path, 'MiniTodo')).absolute,
-      metadataRoot: Directory(
-        p.join(support.path, 'mini_todo', 'sync-metadata', 'MiniTodo'),
-      ).absolute,
+      businessRoot: businessRoot,
+      metadataRoot: metadataRoot,
     );
   }
 }

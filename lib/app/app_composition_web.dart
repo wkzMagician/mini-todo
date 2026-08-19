@@ -36,10 +36,7 @@ Future<AppServices> createApplicationServices() async {
       secretsStore: secrets,
       scope: scope,
     ),
-    localFactory: ObjectStoreLocalReplicaFactory(
-      objects: objects,
-      metadata: metadata,
-    ),
+    localFactory: JournaledObjectStoreLocalReplicaFactory(journaledStore),
     stateRepository: SettingsReconciliationStateRepository(
       settings,
       instanceName: 'default',

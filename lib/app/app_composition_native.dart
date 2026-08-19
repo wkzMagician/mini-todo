@@ -47,10 +47,7 @@ Future<AppServices> _compose({bool background = false}) async {
       secretsStore: secrets,
       scope: scope,
     ),
-    localFactory: ObjectStoreLocalReplicaFactory(
-      objects: store,
-      metadata: metadata,
-    ),
+    localFactory: JournaledObjectStoreLocalReplicaFactory(journaledStore),
     stateRepository: SettingsReconciliationStateRepository(
       settings,
       instanceName: 'default',
