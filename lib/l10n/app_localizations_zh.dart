@@ -132,4 +132,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get syncFailed => '同步失败';
+
+  @override
+  String get ok => '知道了';
 }

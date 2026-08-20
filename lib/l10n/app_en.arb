@@ -43,4 +43,5 @@
   ,"syncSucceeded": "Sync complete"
   ,"syncConflicted": "Sync has conflicts"
   ,"syncFailed": "Sync failed"
+  ,"ok": "OK"
 }

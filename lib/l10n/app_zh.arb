@@ -43,4 +43,5 @@
   ,"syncSucceeded": "同步完成"
   ,"syncConflicted": "同步存在冲突"
   ,"syncFailed": "同步失败"
+  ,"ok": "知道了"
 }

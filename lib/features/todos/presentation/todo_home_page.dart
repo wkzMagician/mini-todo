@@ -56,6 +56,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
   TodoGranularity _newGranularity = TodoGranularity.day;
   String? _editingTodoId;
   bool _syncPasswordUnchanged = false;
+  String? _lastShownSyncFailure;
 
   @override
   void initState() {
@@ -67,6 +68,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
       logger: widget.logger,
       syncService: widget.syncService,
     );
+    _controller.addListener(_handleControllerChanged);
     _controller.initialize().then((_) {
       if (!mounted) return;
       _syncUrlController.text = _controller.syncUrl;
@@ -88,8 +90,38 @@ class _TodoHomePageState extends State<TodoHomePage> {
     _syncUrlController.dispose();
     _syncUsernameController.dispose();
     _syncPasswordController.dispose();
+    _controller.removeListener(_handleControllerChanged);
     _controller.dispose();
     super.dispose();
+  }
+
+  void _handleControllerChanged() {
+    final failure = _controller.syncFailure;
+    if (_controller.syncStatus != SyncPhase.failed || failure == null) {
+      _lastShownSyncFailure = null;
+      return;
+    }
+    if (!mounted || failure.message == _lastShownSyncFailure) {
+      return;
+    }
+    _lastShownSyncFailure = failure.message;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final strings = AppLocalizations.of(context)!;
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(strings.syncFailed),
+          content: Text(failure.message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(strings.ok),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   @override

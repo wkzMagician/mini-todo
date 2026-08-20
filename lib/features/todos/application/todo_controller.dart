@@ -44,6 +44,7 @@ class TodoController extends ChangeNotifier {
   String? _error;
   SyncPhase _syncStatus = SyncPhase.idle;
   String? _syncMessage;
+  SyncFailure? _syncFailure;
   String _syncUrl = '';
   String _syncUsername = '';
   String _syncPassword = '';
@@ -65,6 +66,7 @@ class TodoController extends ChangeNotifier {
   bool get syncAvailable => syncService != null;
   SyncPhase get syncStatus => _syncStatus;
   String? get syncMessage => _syncMessage;
+  SyncFailure? get syncFailure => _syncFailure;
   bool get syncConfigured => _syncUrl.trim().isNotEmpty;
   String get syncUrl => _syncUrl;
   String get syncUsername => _syncUsername;
@@ -158,7 +160,8 @@ class TodoController extends ChangeNotifier {
 
   void _handleSyncSnapshot(SyncSnapshot snapshot) {
     _syncStatus = snapshot.phase;
-    _syncMessage = snapshot.lastReport?.failure?.message;
+    _syncFailure = snapshot.lastReport?.failure;
+    _syncMessage = _syncFailure?.message;
     if (snapshot.localRevision != _localSyncRevision) {
       _localSyncRevision = snapshot.localRevision;
       unawaited(_reloadAfterSync());
@@ -336,6 +339,7 @@ class TodoController extends ChangeNotifier {
       _applyProfile(saved);
       _syncStatus = SyncPhase.syncing;
       _syncMessage = null;
+      _syncFailure = null;
       notifyListeners();
     } on FormatException catch (error, stackTrace) {
       _logger.error('Invalid sync configuration.', error, stackTrace);
@@ -351,6 +355,7 @@ class TodoController extends ChangeNotifier {
 
     _syncStatus = SyncPhase.syncing;
     _syncMessage = null;
+    _syncFailure = null;
     notifyListeners();
     final result = await service.syncNow();
     if (result.failure == null) {
@@ -365,7 +370,8 @@ class TodoController extends ChangeNotifier {
         : result.conflicts > 0
         ? SyncPhase.conflicted
         : SyncPhase.succeeded;
-    _syncMessage = result.failure?.message;
+    _syncFailure = result.failure;
+    _syncMessage = _syncFailure?.message;
     notifyListeners();
     return result;
   }

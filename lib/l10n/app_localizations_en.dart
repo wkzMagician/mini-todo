@@ -134,4 +134,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncFailed => 'Sync failed';
+
+  @override
+  String get ok => 'OK';
 }

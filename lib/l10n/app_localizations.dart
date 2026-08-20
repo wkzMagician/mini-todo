@@ -331,6 +331,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sync failed'**
   String get syncFailed;
+
+  /// No description provided for @ok.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get ok;
 }
 
 class _AppLocalizationsDelegate
