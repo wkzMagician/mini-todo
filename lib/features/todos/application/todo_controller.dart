@@ -389,7 +389,11 @@ class TodoController extends ChangeNotifier {
   }
 
   void _fail(String message, Object error, StackTrace stackTrace) {
-    _error = message;
+    // Keep the user-facing operation label, but include the original
+    // exception. A durable write can succeed before a later journal step
+    // fails, so the exception is important for diagnosing apparent false
+    // negatives on mobile platforms.
+    _error = '$message\n$error';
     _logger.error(message, error, stackTrace);
     notifyListeners();
   }

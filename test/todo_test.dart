@@ -89,6 +89,29 @@ void main() {
     controller.dispose();
   });
 
+  test(
+    'shows the underlying save error when the write succeeds first',
+    () async {
+      final repository = _FailAfterWriteTodoRepository();
+      final controller = TodoController(
+        repository: repository,
+        settings: MemorySettingsStore(),
+        autostart: MemoryAutostartService(),
+        logger: MemoryLogger(),
+      );
+
+      await controller.initialize();
+      expect(
+        await controller.addTask('Saved before failure', TodoGranularity.day),
+        isFalse,
+      );
+      expect(controller.todos, isEmpty);
+      expect((await repository.load()).single.title, 'Saved before failure');
+      expect(controller.error, contains('simulated journal failure'));
+      controller.dispose();
+    },
+  );
+
   test('stores every todo as an independent sync record', () async {
     final store = MemoryObjectStore();
     final repository = ObjectStoreTodoRepository(store);
@@ -384,6 +407,23 @@ final class _RecordingSyncService implements SyncService {
 
   @override
   Future<void> start() async {}
+}
+
+final class _FailAfterWriteTodoRepository implements TodoRepository {
+  List<Todo> _todos = [];
+  bool _failNextSave = true;
+
+  @override
+  Future<List<Todo>> load() async => List<Todo>.from(_todos);
+
+  @override
+  Future<void> save(List<Todo> todos) async {
+    _todos = List<Todo>.from(todos);
+    if (_failNextSave) {
+      _failNextSave = false;
+      throw StateError('simulated journal failure');
+    }
+  }
 }
 
 Future<FileObjectStore> _openStore(Directory business) =>
