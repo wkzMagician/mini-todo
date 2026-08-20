@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dartloom_storage/dartloom_storage.dart';
@@ -51,6 +52,25 @@ class ObjectStoreTodoRepository implements TodoRepository {
 
   @override
   Future<void> save(List<Todo> todos) async {
+    Object? lastError;
+    StackTrace? lastStackTrace;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        await _saveOnce(todos);
+        return;
+      } catch (error, stackTrace) {
+        if (!_isTransientPathError(error) || attempt == 2) {
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+        lastError = error;
+        lastStackTrace = stackTrace;
+        await Future<void>.delayed(Duration(milliseconds: 25 * (attempt + 1)));
+      }
+    }
+    Error.throwWithStackTrace(lastError!, lastStackTrace!);
+  }
+
+  Future<void> _saveOnce(List<Todo> todos) async {
     final allKeys = await _existingKeys();
     final existingKeys = allKeys.where(TodoStorageKeys.isTodoKey).toSet();
     final nextKeys = <String>{};
@@ -67,6 +87,10 @@ class ObjectStoreTodoRepository implements TodoRepository {
       await _store.delete(TodoStorageKeys.legacyTodosKey);
     }
   }
+
+  bool _isTransientPathError(Object error) =>
+      error is PathNotFoundException ||
+      error is FileSystemException && error.osError?.errorCode == 2;
 
   Future<List<String>> _existingKeys() async =>
       (await _store.scan()).map((item) => item.key).toList();

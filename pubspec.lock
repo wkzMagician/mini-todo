@@ -202,7 +202,7 @@ packages:
     description:
       path: "packages/dartloom_storage_file"
       ref: main
-      resolved-ref: "0907d031f7b93a93014d35a5745edfce18e77d0f"
+      resolved-ref: f998876fb4a5f229631f2bf58881764b6e151dd0
       url: "https://github.com/wkzMagician/dartloom.git"
     source: git
     version: "0.2.0"

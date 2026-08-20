@@ -140,6 +140,22 @@ void main() {
     expect((await repository.load()).single, second);
   });
 
+  test('retries a transient local path error while saving', () async {
+    final store = _FailOnceObjectStore();
+    final repository = ObjectStoreTodoRepository(store);
+    final todo = Todo(
+      id: 'one',
+      title: 'Retry me',
+      granularity: TodoGranularity.day,
+      createdAt: now,
+    );
+
+    await repository.save([todo]);
+
+    expect(await repository.load(), [todo]);
+    expect(store.writeAttempts, 2);
+  });
+
   test('serializes mutations for object stores', () async {
     final store = _SerialOnlyObjectStore();
     final repository = ObjectStoreTodoRepository(store);
@@ -478,4 +494,43 @@ final class _SerialOnlyObjectStore implements ObjectStore {
       _activeMutations--;
     }
   }
+}
+
+final class _FailOnceObjectStore implements ObjectStore {
+  final _delegate = MemoryObjectStore();
+  var writeAttempts = 0;
+
+  @override
+  String get identity => _delegate.identity;
+
+  @override
+  bool acceptsKey(String key) => _delegate.acceptsKey(key);
+
+  @override
+  Future<List<StoredObject>> scan() => _delegate.scan();
+
+  @override
+  Future<Uint8List?> read(String key) => _delegate.read(key);
+
+  @override
+  Future<void> write(String key, Uint8List data) {
+    writeAttempts++;
+    if (writeAttempts == 1) {
+      throw FileSystemException(
+        'simulated rename race',
+        key,
+        OSError('No such file or directory', 2),
+      );
+    }
+    return _delegate.write(key, data);
+  }
+
+  @override
+  Future<void> delete(String key) => _delegate.delete(key);
+
+  @override
+  Stream<StorageChange> get changes => _delegate.changes;
+
+  @override
+  Future<void> close() => _delegate.close();
 }
