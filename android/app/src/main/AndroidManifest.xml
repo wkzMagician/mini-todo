@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Release builds inherit only this manifest, so declare network access
+         here rather than relying on the debug/profile manifests. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:label="mini_todo"
         android:name="${applicationName}"
