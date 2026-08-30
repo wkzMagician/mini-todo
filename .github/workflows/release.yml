@@ -1,3 +1,4 @@
+# Managed by RepoFlow: https://github.com/wkzMagician/gh-repoflow
 name: Release
 
 on:
@@ -19,14 +20,16 @@ jobs:
           channel: stable
       - run: flutter pub get
       - run: flutter build apk --release
+      - run: flutter build appbundle --release
       - name: Prepare APK
         run: |
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk dist/mini_todo-android.apk
+          cp build/app/outputs/bundle/release/app-release.aab dist/mini_todo-android.aab
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: dist/mini_todo-android.apk
+          path: dist/mini_todo-android.*
 
   ios:
     runs-on: macos-latest
@@ -188,7 +191,7 @@ jobs:
       - name: Collect release files
         run: |
           mkdir -p release_files
-          find downloaded_artifacts -type f -exec cp {} release_files/ \;
+          find downloaded_artifacts -type f ! -name '*.aab' -exec cp {} release_files/ \;
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
