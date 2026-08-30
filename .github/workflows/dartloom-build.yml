@@ -54,13 +54,14 @@ jobs:
         run: choco install innosetup --no-progress -y
       - name: Build Android
         if: ${{ matrix.platform == 'android' }}
-        run: flutter build apk --${{ inputs.mode }}
+        run: flutter build apk --${{ inputs.mode }} && flutter build appbundle --${{ inputs.mode }}
       - name: Package Android
         if: ${{ matrix.platform == 'android' }}
         shell: bash
         run: |
           mkdir -p artifact
           cp build/app/outputs/flutter-apk/app-${{ inputs.mode }}.apk artifact/mini_todo-android.apk
+          cp build/app/outputs/bundle/${{ inputs.mode }}/app-${{ inputs.mode }}.aab artifact/mini_todo-android.aab
       - name: Build iOS
         if: ${{ matrix.platform == 'ios' }}
         run: flutter build ios --${{ inputs.mode }} --no-codesign
